@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/bencode"
+	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
 func HandleInfo(args []string) {
@@ -40,6 +41,15 @@ func HandleInfo(args []string) {
 	trackerUrl := d.Map["announce"].GetString().Value
 	fmt.Printf("Tracker URL: %s\n", trackerUrl)
 
-	fileSize := d.Map["info"].GetDictionary().Map["length"].GetInteger().Value
+	infoDict := d.Map["info"].GetDictionary()
+
+	fileSize := infoDict.Map["length"].GetInteger().Value
 	fmt.Printf("Length: %d\n", fileSize)
+
+	infoHash, err := utils.SHA1Hash(infoDict.Encode())
+	if err != nil {
+		fmt.Printf("error hashing the info dictionary: %v", err)
+		return
+	}
+	fmt.Printf("Info Hash: %s\n", infoHash)
 }
