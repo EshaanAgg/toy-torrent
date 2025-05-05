@@ -42,7 +42,7 @@ func HandleInfo(args []string) {
 
 	fmt.Printf("Tracker URL: %s\n", fileInfo.TrackerURL)
 	fmt.Printf("Length: %d\n", fileInfo.FileSize)
-	fmt.Printf("Info Hash: %s\n", fileInfo.InfoHash)
+	fmt.Printf("Info Hash: %s\n", fileInfo.GetHexInfoHash())
 
 	infoDict := fileInfo.InfoDict
 	fmt.Printf("Piece Length: %d\n", infoDict.Map["piece length"].GetInteger().Value)

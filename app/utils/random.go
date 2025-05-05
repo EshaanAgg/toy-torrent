@@ -1,9 +1,12 @@
 package utils
 
-func GetRandomClientID() string {
+import "math/rand"
+
+func GetRandomPeerID() string {
 	clientID := make([]byte, 20)
 	for i := range 20 {
-		clientID[i] = byte('a' + i%26)
+		rnd := rand.Intn(26)
+		clientID[i] = byte('a' + rnd)
 	}
 	return string(clientID)
 }

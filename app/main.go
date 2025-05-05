@@ -22,6 +22,9 @@ func main() {
 	case "info":
 		cmd.HandleInfo(args[1:])
 
+	case "peers":
+		cmd.HandlePeers(args[1:])
+
 	default:
 		fmt.Printf("unrecognized command '%s'", args[0])
 	}

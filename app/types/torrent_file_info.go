@@ -11,7 +11,7 @@ import (
 type TorrentFileInfo struct {
 	TrackerURL string
 	FileSize   int
-	InfoHash   string
+	InfoHash   []byte
 	InfoDict   *bencode.BencodeDictionary
 }
 
@@ -46,5 +46,8 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 		InfoHash:   infoHash,
 		InfoDict:   infoDict,
 	}, nil
+}
 
+func (t *TorrentFileInfo) GetHexInfoHash() string {
+	return fmt.Sprintf("%x", t.InfoHash)
 }
