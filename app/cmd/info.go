@@ -1,0 +1,45 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/EshaanAgg/toy-bittorrent/app/bencode"
+)
+
+func HandleInfo(args []string) {
+	// Validate the number of arguments passed to the info command
+	if len(args) == 0 {
+		fmt.Println("no data passed to info. usage: kafka info <path-to-file>")
+		return
+	}
+
+	if len(args) > 1 {
+		fmt.Println("too many arguments passed to info. usage: kafka info <path-to-file>")
+		return
+	}
+
+	// Read the file content
+	filePath := args[0]
+	fileContent, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("error reading file: %v", err)
+		return
+	}
+
+	// Decode the file content as a dictionary
+	bd, err := bencode.NewBencodeData(string(fileContent))
+	if err != nil {
+		fmt.Printf("error decoding the passed data: %v", err)
+		return
+	}
+
+	// Access the nested elements directly as we can be assured
+	// that the file passed is a valid torrent file
+	d := bd.GetDictionary()
+	trackerUrl := d.Map["announce"].GetString().Value
+	fmt.Printf("Tracker URL: %s\n", trackerUrl)
+
+	fileSize := d.Map["info"].GetDictionary().Map["length"].GetInteger().Value
+	fmt.Printf("Length: %d\n", fileSize)
+}
