@@ -6,6 +6,6 @@
 //
 // DON'T EDIT THIS!
 
-module github.com/codecrafters-io/bittorrent-starter-go
+module github.com/EshaanAgg/toy-bittorrent
 
 go 1.24.0
