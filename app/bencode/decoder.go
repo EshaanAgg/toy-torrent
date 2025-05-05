@@ -122,5 +122,17 @@ func (d *decoder) parse() (*BencodeData, error) {
 		}, nil
 	}
 
+	// Parse dictionary if it starts with byte 'd'
+	if *ch == 'd' {
+		d, err := d.parseDictionary()
+		if err != nil {
+			return nil, fmt.Errorf("error parsing dictionary: %w", err)
+		}
+		return &BencodeData{
+			Type:  DictionaryType,
+			Value: d,
+		}, nil
+	}
+
 	return nil, fmt.Errorf("unrecognized character to start parsing: %q", *ch)
 }

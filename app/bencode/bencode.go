@@ -55,3 +55,23 @@ func NewEncodeInteger(i int) *BencodeData {
 		},
 	}
 }
+
+func NewEncodeList(l []*BencodeData) *BencodeData {
+	return &BencodeData{
+		Type: ListType,
+		Value: &BencodeList{
+			Array:  l,
+			Length: len(l),
+		},
+	}
+}
+
+func NewEncodeDictionary(m map[string]*BencodeData) *BencodeData {
+	return &BencodeData{
+		Type: DictionaryType,
+		Value: &BencodeDictionary{
+			Map:    m,
+			Length: len(m),
+		},
+	}
+}
