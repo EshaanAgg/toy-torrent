@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/EshaanAgg/toy-bittorrent/app/bencode"
-	"github.com/EshaanAgg/toy-bittorrent/app/utils"
+	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
 
 // printPieceHashes prints the piece hashes from the pieces byte array.
@@ -24,55 +22,30 @@ func printPieceHashes(pieces []byte) {
 	}
 }
 
-func printInfoRelatedFields(infoDict *bencode.BencodeDictionary) {
-	infoHash, err := utils.SHA1Hash(infoDict.Encode())
-	if err != nil {
-		fmt.Printf("error hashing the info dictionary: %v", err)
-		return
-	}
-
-	fmt.Printf("Info Hash: %s\n", infoHash)
-	fmt.Printf("Piece Length: %d\n", infoDict.Map["piece length"].GetInteger().Value)
-	pieces := infoDict.Map["pieces"].GetString().Value
-	printPieceHashes(pieces)
-}
-
 func HandleInfo(args []string) {
 	// Validate the number of arguments passed to the info command
 	if len(args) == 0 {
-		fmt.Println("no data passed to info. usage: kafka info <path-to-file>")
+		fmt.Println("no data passed to info. usage: go-torrent info <path-to-file>")
 		return
 	}
 
 	if len(args) > 1 {
-		fmt.Println("too many arguments passed to info. usage: kafka info <path-to-file>")
+		fmt.Println("too many arguments passed to info. usage: go-torrent info <path-to-file>")
 		return
 	}
 
-	// Read the file content
-	filePath := args[0]
-	fileContent, err := os.ReadFile(filePath)
+	fileInfo, err := types.NewTorrentFileInfo(args[0])
 	if err != nil {
-		fmt.Printf("error reading file: %v", err)
+		fmt.Printf("error creating TorrentFileInfo: %v\n", err)
 		return
 	}
 
-	// Decode the file content as a dictionary
-	bd, err := bencode.NewBencodeData(fileContent)
-	if err != nil {
-		fmt.Printf("error decoding the passed data: %v", err)
-		return
-	}
+	fmt.Printf("Tracker URL: %s\n", fileInfo.TrackerURL)
+	fmt.Printf("Length: %d\n", fileInfo.FileSize)
+	fmt.Printf("Info Hash: %s\n", fileInfo.InfoHash)
 
-	// Access the nested elements directly as we can be assured
-	// that the file passed is a valid torrent file
-	d := bd.GetDictionary()
-	trackerUrl := d.Map["announce"].GetString().Value
-	fmt.Printf("Tracker URL: %s\n", trackerUrl)
-
-	infoDict := d.Map["info"].GetDictionary()
-	fileSize := infoDict.Map["length"].GetInteger().Value
-	fmt.Printf("Length: %d\n", fileSize)
-
-	printInfoRelatedFields(infoDict)
+	infoDict := fileInfo.InfoDict
+	fmt.Printf("Piece Length: %d\n", infoDict.Map["piece length"].GetInteger().Value)
+	pieces := infoDict.Map["pieces"].GetString().Value
+	printPieceHashes(pieces)
 }
