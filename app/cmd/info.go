@@ -42,7 +42,6 @@ func HandleInfo(args []string) {
 	fmt.Printf("Tracker URL: %s\n", trackerUrl)
 
 	infoDict := d.Map["info"].GetDictionary()
-
 	fileSize := infoDict.Map["length"].GetInteger().Value
 	fmt.Printf("Length: %d\n", fileSize)
 

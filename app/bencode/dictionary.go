@@ -2,6 +2,7 @@ package bencode
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -18,7 +19,12 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 		return nil, err
 	}
 
-	itemMap := make(map[string]*BencodeData)
+	type Item struct {
+		Key   string
+		Value *BencodeData
+	}
+	items := make([]*Item, 0)
+
 	for {
 		ch := d.peek()
 		if ch != nil && *ch == 'e' {
@@ -38,12 +44,24 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 			return nil, fmt.Errorf("parsing dictionary item: %w", err)
 		}
 
-		itemMap[key.GetString().Value] = item
+		items = append(items, &Item{
+			Key:   key.GetString().Value,
+			Value: item,
+		})
 	}
 
 	err = d.expect('e')
 	if err != nil {
 		return nil, err
+	}
+
+	// Sort items by key and create a map
+	slices.SortFunc(items, func(a, b *Item) int {
+		return strings.Compare(a.Key, b.Key)
+	})
+	itemMap := make(map[string]*BencodeData)
+	for _, item := range items {
+		itemMap[item.Key] = item.Value
 	}
 
 	return &BencodeDictionary{
