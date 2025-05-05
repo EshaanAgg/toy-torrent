@@ -11,6 +11,22 @@ type BencodeDictionary struct {
 	Length int
 }
 
+// sortedMapByKey sorts the map by its keys and returns a new map with the sorted keys.
+// This is necessary because Go maps do not maintain order.
+func sortedMapByKey(m map[string]*BencodeData) map[string]*BencodeData {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
+	sorted := make(map[string]*BencodeData)
+	for _, k := range keys {
+		sorted[k] = m[k]
+	}
+	return sorted
+}
+
 // Parses a dictionary encoded in the bencode format.
 // Format: d<key1><item1>...e
 func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
@@ -19,12 +35,7 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 		return nil, err
 	}
 
-	type Item struct {
-		Key   string
-		Value *BencodeData
-	}
-	items := make([]*Item, 0)
-
+	itemsMap := make(map[string]*BencodeData)
 	for {
 		ch := d.peek()
 		if ch != nil && *ch == 'e' {
@@ -44,10 +55,7 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 			return nil, fmt.Errorf("parsing dictionary item: %w", err)
 		}
 
-		items = append(items, &Item{
-			Key:   key.GetString().Value,
-			Value: item,
-		})
+		itemsMap[key.GetString().Value] = item
 	}
 
 	err = d.expect('e')
@@ -55,23 +63,16 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 		return nil, err
 	}
 
-	// Sort items by key and create a map
-	slices.SortFunc(items, func(a, b *Item) int {
-		return strings.Compare(a.Key, b.Key)
-	})
-	itemMap := make(map[string]*BencodeData)
-	for _, item := range items {
-		itemMap[item.Key] = item.Value
-	}
-
+	itemsMap = sortedMapByKey(itemsMap)
 	return &BencodeDictionary{
-		Map:    itemMap,
-		Length: len(itemMap),
+		Map:    itemsMap,
+		Length: len(itemsMap),
 	}, nil
 }
 
 func (s *BencodeDictionary) String() string {
 	elements := make([]string, 0)
+	s.Map = sortedMapByKey(s.Map)
 	for key, item := range s.Map {
 		elements = append(elements, fmt.Sprintf("\"%s\":%s", key, item.Value.String()))
 	}
@@ -81,6 +82,7 @@ func (s *BencodeDictionary) String() string {
 
 func (s *BencodeDictionary) Encode() string {
 	str := "d"
+	s.Map = sortedMapByKey(s.Map)
 	for key, item := range s.Map {
 		str += fmt.Sprintf("%d:%s", len(key), key) // Encode the key as string
 		str += item.Value.Encode()
