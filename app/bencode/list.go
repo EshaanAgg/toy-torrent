@@ -52,12 +52,11 @@ func (s *BencodeList) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(elements, ","))
 }
 
-func (s *BencodeList) Encode() string {
-	str := "l"
+func (s *BencodeList) Encode() []byte {
+	d := []byte{'l'}
 	for _, item := range s.Array {
-		str += item.Value.Encode()
+		d = append(d, item.Value.Encode()...)
 	}
-	str += "e"
-
-	return str
+	d = append(d, 'e')
+	return d
 }

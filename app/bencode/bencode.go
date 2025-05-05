@@ -13,7 +13,7 @@ const (
 
 type ValueInterface interface {
 	String() string // Returns the string representation of the value
-	Encode() string // Returns the encoded string according to bencode format
+	Encode() []byte // Returns the encoded bytes according to bencode format
 }
 
 type BencodeData struct {
@@ -21,7 +21,7 @@ type BencodeData struct {
 	Value ValueInterface // Stores the pointers to the underlying values
 }
 
-func NewBencodeData(s string) (*BencodeData, error) {
+func NewBencodeData(s []byte) (*BencodeData, error) {
 	d := newDecoder(s)
 
 	v, err := d.parse()
@@ -42,7 +42,7 @@ func NewEncodeString(s string) *BencodeData {
 		Type: StringType,
 		Value: &BencodeString{
 			Length: len(s),
-			Value:  s,
+			Value:  []byte(s),
 		},
 	}
 }

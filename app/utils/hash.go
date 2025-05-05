@@ -6,9 +6,9 @@ import (
 	"fmt"
 )
 
-func SHA1Hash(s string) (string, error) {
+func SHA1Hash(d []byte) (string, error) {
 	h := sha1.New()
-	_, err := h.Write([]byte(s))
+	_, err := h.Write(d)
 	if err != nil {
 		return "", fmt.Errorf("error writing to hash: %w", err)
 	}

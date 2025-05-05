@@ -13,7 +13,7 @@ func HandleDecode(args []string) {
 	}
 
 	d := args[0]
-	bd, err := bencode.NewBencodeData(d)
+	bd, err := bencode.NewBencodeData([]byte(d))
 	if err != nil {
 		fmt.Printf("error decoding the passed data: %v", err)
 		return

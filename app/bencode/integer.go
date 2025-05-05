@@ -46,6 +46,6 @@ func (i *BencodeInteger) String() string {
 	return fmt.Sprintf("%d", i.Value)
 }
 
-func (i *BencodeInteger) Encode() string {
-	return fmt.Sprintf("i%de", i.Value)
+func (i *BencodeInteger) Encode() []byte {
+	return fmt.Appendf([]byte{}, "i%de", i.Value)
 }

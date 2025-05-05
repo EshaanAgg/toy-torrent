@@ -55,7 +55,8 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 			return nil, fmt.Errorf("parsing dictionary item: %w", err)
 		}
 
-		itemsMap[key.GetString().Value] = item
+		keyStr := string(key.GetString().Value)
+		itemsMap[keyStr] = item
 	}
 
 	err = d.expect('e')
@@ -80,14 +81,14 @@ func (s *BencodeDictionary) String() string {
 	return fmt.Sprintf("{%s}", strings.Join(elements, ","))
 }
 
-func (s *BencodeDictionary) Encode() string {
-	str := "d"
+func (s *BencodeDictionary) Encode() []byte {
+	res := []byte{'d'}
 	s.Map = sortedMapByKey(s.Map)
 	for key, item := range s.Map {
-		str += fmt.Sprintf("%d:%s", len(key), key) // Encode the key as string
-		str += item.Value.Encode()
+		res = append(res, fmt.Sprintf("%d:%s", len(key), key)...) // Encode key as string
+		res = append(res, item.Value.Encode()...)
 	}
-	str += "e"
+	res = append(res, 'e')
 
-	return str
+	return res
 }

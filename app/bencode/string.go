@@ -5,7 +5,7 @@ import (
 )
 
 type BencodeString struct {
-	Value  string
+	Value  []byte
 	Length int
 }
 
@@ -28,8 +28,8 @@ func (d *decoder) parseString() (*BencodeString, error) {
 	}
 
 	return &BencodeString{
-		Value:  string(*b),
-		Length: len(*b),
+		Value:  b,
+		Length: len(b),
 	}, nil
 }
 
@@ -37,6 +37,6 @@ func (s *BencodeString) String() string {
 	return fmt.Sprintf("\"%s\"", s.Value)
 }
 
-func (s *BencodeString) Encode() string {
-	return fmt.Sprintf("%d:%s", s.Length, s.Value)
+func (s *BencodeString) Encode() []byte {
+	return append(fmt.Appendf([]byte{}, "%d:", s.Length), s.Value...)
 }

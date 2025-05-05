@@ -6,12 +6,12 @@ import (
 )
 
 type decoder struct {
-	data    string
+	data    []byte
 	idx     int
 	dataLen int
 }
 
-func newDecoder(data string) *decoder {
+func newDecoder(data []byte) *decoder {
 	return &decoder{
 		data:    data,
 		dataLen: len(data),
@@ -47,14 +47,14 @@ func (d *decoder) expect(b byte) error {
 	return nil
 }
 
-func (d *decoder) getNBytes(l int) *string {
+func (d *decoder) getNBytes(l int) []byte {
 	if d.idx+l-1 >= d.dataLen {
 		return nil
 	}
 
 	v := d.data[d.idx : d.idx+l]
 	d.idx += l
-	return &v
+	return v
 }
 
 func (d *decoder) readInteger() (int, error) {

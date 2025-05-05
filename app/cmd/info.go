@@ -29,7 +29,7 @@ func HandleInfo(args []string) {
 	}
 
 	// Decode the file content as a dictionary
-	bd, err := bencode.NewBencodeData(string(fileContent))
+	bd, err := bencode.NewBencodeData(fileContent)
 	if err != nil {
 		fmt.Printf("error decoding the passed data: %v", err)
 		return
