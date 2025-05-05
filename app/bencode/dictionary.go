@@ -2,7 +2,7 @@ package bencode
 
 import (
 	"fmt"
-	"slices"
+	"sort"
 	"strings"
 )
 
@@ -11,20 +11,17 @@ type BencodeDictionary struct {
 	Length int
 }
 
-// sortedMapByKey sorts the map by its keys and returns a new map with the sorted keys.
-// This is necessary because Go maps do not maintain order.
-func sortedMapByKey(m map[string]*BencodeData) map[string]*BencodeData {
+// Returns the sorted keys of the dictionary. This is used to ensure that the
+// dictionary is always encoded in a consistent order, which is important for
+// hashing and comparison purposes.
+func getSortedKeys(m map[string]*BencodeData) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
-	slices.Sort(keys)
 
-	sorted := make(map[string]*BencodeData)
-	for _, k := range keys {
-		sorted[k] = m[k]
-	}
-	return sorted
+	sort.Strings(keys)
+	return keys
 }
 
 // Parses a dictionary encoded in the bencode format.
@@ -64,7 +61,6 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 		return nil, err
 	}
 
-	itemsMap = sortedMapByKey(itemsMap)
 	return &BencodeDictionary{
 		Map:    itemsMap,
 		Length: len(itemsMap),
@@ -73,20 +69,21 @@ func (d *decoder) parseDictionary() (*BencodeDictionary, error) {
 
 func (s *BencodeDictionary) String() string {
 	elements := make([]string, 0)
-	s.Map = sortedMapByKey(s.Map)
-	for key, item := range s.Map {
-		elements = append(elements, fmt.Sprintf("\"%s\":%s", key, item.Value.String()))
-	}
+	keys := getSortedKeys(s.Map)
 
+	for _, key := range keys {
+		elements = append(elements, fmt.Sprintf("\"%s\":%s", key, s.Map[key].Value.String()))
+	}
 	return fmt.Sprintf("{%s}", strings.Join(elements, ","))
 }
 
 func (s *BencodeDictionary) Encode() []byte {
 	res := []byte{'d'}
-	s.Map = sortedMapByKey(s.Map)
-	for key, item := range s.Map {
+	keys := getSortedKeys(s.Map)
+
+	for _, key := range keys {
 		res = append(res, fmt.Sprintf("%d:%s", len(key), key)...) // Encode key as string
-		res = append(res, item.Value.Encode()...)
+		res = append(res, s.Map[key].Value.Encode()...)
 	}
 	res = append(res, 'e')
 
