@@ -1,7 +1,5 @@
 package types
 
-import "fmt"
-
 type Handshake struct {
 	PeerID   []byte
 	InfoHash []byte
@@ -27,12 +25,11 @@ func NewHandshakeFromBytes(data []byte) *Handshake {
 	if len(data) < 68 {
 		return nil
 	}
-	fmt.Println("Received Handshake: ", data)
+
 	h := &Handshake{
-		PeerID:   data[28:48],
-		InfoHash: data[48:68],
+		InfoHash: data[28:48],
+		PeerID:   data[48:68],
 	}
-	fmt.Println("Peer ID: ", h.PeerID)
-	fmt.Println("Info Hash: ", h.InfoHash)
+
 	return h
 }

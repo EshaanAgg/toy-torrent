@@ -56,5 +56,5 @@ func HandleHandshake(args []string, server *types.Server) {
 		return
 	}
 
-	fmt.Println("Peer ID: ", utils.BytesToHex(handshake.PeerID))
+	fmt.Println("Peer ID:", utils.BytesToHex(handshake.PeerID))
 }
