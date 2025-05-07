@@ -1,9 +1,14 @@
 package types
 
-import "github.com/EshaanAgg/toy-bittorrent/app/utils"
+import (
+	"net"
+
+	"github.com/EshaanAgg/toy-bittorrent/app/utils"
+)
 
 type Server struct {
-	PeerID []byte
+	PeerID          []byte
+	PeerConnections map[*Peer]net.Conn
 }
 
 func NewServer() *Server {

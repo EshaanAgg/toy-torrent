@@ -13,12 +13,6 @@ type TrackerGetResponse struct {
 	Peers    []*Peer
 }
 
-// Represents a peer in the tracker response.
-type Peer struct {
-	IP   string
-	Port int
-}
-
 func NewTrackerGetResponse(data []byte) (*TrackerGetResponse, error) {
 	d, err := bencode.NewBencodeData(data)
 	if err != nil {
