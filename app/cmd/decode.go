@@ -19,6 +19,6 @@ func HandleDecode(args []string) {
 		return
 	}
 
-	// Print the string representation of the decoded data to STDIN
+	// Print the string representation of the decoded data to STDOUT
 	fmt.Println(bd.Value.String())
 }

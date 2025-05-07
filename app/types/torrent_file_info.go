@@ -35,6 +35,7 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 	infoDict := d.Map["info"].GetDictionary()
 	fileSize := infoDict.Map["length"].GetInteger().Value
 
+	// Parse the info dictionary to get the info hash
 	infoHash, err := utils.SHA1Hash(infoDict.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("error hashing the info dictionary: %v", err)
