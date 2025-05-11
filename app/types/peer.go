@@ -75,6 +75,7 @@ func (p *Peer) RecieveMessage() ([]byte, error) {
 	}
 
 	message := make([]byte, length)
+	fmt.Println("recieved message length:", length, "message:", message)
 	_, err = p.conn.Read(message)
 	if err != nil {
 		return nil, fmt.Errorf("error reading message body: %v", err)
@@ -102,7 +103,7 @@ func (p *Peer) PrepareToGetPieceData(s *Server, infoHash []byte) error {
 }
 
 // CloseConnection closes the TCP connection to the peer.
-func (p *Peer) CloseConnection(s *Server) error {
+func (p *Peer) CloseConnection() error {
 	err := p.conn.Close()
 	if err != nil {
 		return err
@@ -117,7 +118,8 @@ func (p *Peer) Log(s string, vals ...any) {
 		p.Port,
 	}
 	args = append(args, vals...)
-	fmt.Printf("[%s:%d] "+s, args...)
+	msg := fmt.Sprintf("[%s:%d] %s\n", p.IP, p.Port, s)
+	fmt.Printf(msg, args...)
 }
 
 // PerformHandshake sends a handshake to the peer and waits for a response.

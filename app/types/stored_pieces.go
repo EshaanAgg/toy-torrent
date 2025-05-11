@@ -44,9 +44,13 @@ func (pb *pieceBlock) makeRequest(p *Peer, pieceIdx uint32) error {
 		return fmt.Errorf("error sending request message: %v", err)
 	}
 
-	p.Log("sent request message for piece %d, block %d", pieceIdx, pb.byteOffset)
+	p.Log("sent request message for piece idx %d, block %d", pieceIdx, pb.byteOffset)
 	return nil
 }
+
+// CallbackFn is called with the completed piece when the download is complete.
+// It should return true if the piece is valid, false otherwise.
+type CallbackFn func(*StoredPiece) bool
 
 // StoredPiece represents a piece of data that needs to be downloaded.
 type StoredPiece struct {
@@ -58,7 +62,6 @@ type StoredPiece struct {
 	RecievedBlockCount atomic.Uint32 // The number of blocks received
 
 	peerConn net.Conn
-	callback func(*StoredPiece) // Callback function to be called when the piece is complete
 }
 
 func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
@@ -86,7 +89,7 @@ func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
 	return sp
 }
 
-func (sp *StoredPiece) Download(p *Peer, callback func(*StoredPiece)) []byte {
+func (sp *StoredPiece) Download(p *Peer, callback CallbackFn) bool {
 	// Make requests for all blocks
 	for _, block := range sp.Blocks {
 		go func() {
@@ -97,8 +100,6 @@ func (sp *StoredPiece) Download(p *Peer, callback func(*StoredPiece)) []byte {
 		}()
 	}
 
-	// Set the callback function
-	sp.callback = callback
 	sp.peerConn = p.conn
 
 	// Loop to recieve the messages on the connection
@@ -119,6 +120,10 @@ func (sp *StoredPiece) Download(p *Peer, callback func(*StoredPiece)) []byte {
 			if err != nil {
 				p.Log("error handling piece message: %v", err)
 			}
+		}
+
+		if sp.IsComplete() {
+			return callback(sp)
 		}
 	}
 }
@@ -143,13 +148,6 @@ func (sp *StoredPiece) HandlePieceMessage(m *PieceMessage) error {
 
 	sp.Blocks[blockIdx].setData(m.Block)
 	sp.RecievedBlockCount.Add(1)
-
-	// If the piece is complete, call the callback function
-	if sp.IsComplete() {
-		if sp.callback != nil {
-			sp.callback(sp)
-		}
-	}
 
 	return nil
 }

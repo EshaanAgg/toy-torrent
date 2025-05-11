@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -27,6 +28,10 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		fmt.Printf("error converting piece index to int: %v\n", err)
 		return
 	}
+	if pieceIdx < 0 || pieceIdx >= len(fileInfo.InfoDict.Pieces) {
+		fmt.Printf("piece index out of range: %d\n", pieceIdx)
+		return
+	}
 
 	peers, err := getPeers(fileInfo, s)
 	if err != nil {
@@ -48,19 +53,38 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		fmt.Printf("error preparing to get piece data: %v\n", err)
 		return
 	}
+	pieceHash := fileInfo.InfoDict.Pieces[pieceIdx]
 
 	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(fileInfo.InfoDict.PieceLength))
-	sp.Download(peer, func(sp *types.StoredPiece) {
+	valid := sp.Download(peer, func(sp *types.StoredPiece) bool {
 		fmt.Printf("piece %d downloaded\n", pieceIdx)
-		err := utils.MakeFileWithData(args[1], sp.GetData())
+		data := sp.GetData()
+
+		// Create the output file and write the piece data to it
+		err := utils.MakeFileWithData(args[1], data)
 		if err != nil {
 			fmt.Printf("error writing piece data to file: %v\n", err)
-			os.Exit(1)
+			return false
 		}
-		os.Exit(0)
+
+		// Verify the piece hash
+		hash, err := utils.SHA1Hash(data)
+		if err != nil {
+			fmt.Printf("error hashing piece data: %v\n", err)
+			return false
+		}
+
+		if bytes.Equal(hash, pieceHash) {
+			fmt.Printf("piece %d hash verified\n", pieceIdx)
+			return true
+		} else {
+			fmt.Printf("piece %d hash verification failed\n", pieceIdx)
+			return false
+		}
 	})
 
-	// Block the main thread to keep the program running
-	for {
+	if !valid {
+		fmt.Printf("piece %d download failed\n", pieceIdx)
+		os.Exit(1)
 	}
 }
