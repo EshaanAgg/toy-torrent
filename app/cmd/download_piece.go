@@ -55,36 +55,32 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 	}
 	pieceHash := fileInfo.InfoDict.Pieces[pieceIdx]
 
-	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(fileInfo.InfoDict.PieceLength))
-	valid := sp.Download(peer, func(sp *types.StoredPiece) bool {
-		fmt.Printf("piece %d downloaded\n", pieceIdx)
+	go peer.RegisterPieceMessageHandler(func(sp *types.StoredPiece) {
 		data := sp.GetData()
 
 		// Create the output file and write the piece data to it
 		err := utils.MakeFileWithData(args[1], data)
 		if err != nil {
 			fmt.Printf("error writing piece data to file: %v\n", err)
-			return false
 		}
 
 		// Verify the piece hash
 		hash, err := utils.SHA1Hash(data)
 		if err != nil {
 			fmt.Printf("error hashing piece data: %v\n", err)
-			return false
 		}
 
 		if bytes.Equal(hash, pieceHash) {
 			fmt.Printf("piece %d hash verified\n", pieceIdx)
-			return true
 		} else {
 			fmt.Printf("piece %d hash verification failed\n", pieceIdx)
-			return false
 		}
+		os.Exit(0) // Exit the program after writing the piece
 	})
 
-	if !valid {
-		fmt.Printf("piece %d download failed\n", pieceIdx)
-		os.Exit(1)
+	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(fileInfo.InfoDict.PieceLength))
+	sp.Download(peer) // Start downloading the piece
+
+	for {
 	}
 }

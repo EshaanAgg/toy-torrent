@@ -39,18 +39,14 @@ func (pb *pieceBlock) makeRequest(p *Peer, pieceIdx uint32) error {
 	binary.BigEndian.PutUint32(message[5:], pb.byteOffset)
 	binary.BigEndian.PutUint32(message[9:], pb.length)
 
-	_, err := p.conn.Write(message)
+	err := p.SendMessage(message)
 	if err != nil {
 		return fmt.Errorf("error sending request message: %v", err)
 	}
 
-	p.Log("sent request message for piece idx %d, block %d", pieceIdx, pb.byteOffset)
+	p.Log("sent request message for piece_idx = %d, block_idx = %d", pieceIdx, pb.byteOffset/BLOCK_SIZE)
 	return nil
 }
-
-// CallbackFn is called with the completed piece when the download is complete.
-// It should return true if the piece is valid, false otherwise.
-type CallbackFn func(*StoredPiece) bool
 
 // StoredPiece represents a piece of data that needs to be downloaded.
 type StoredPiece struct {
@@ -70,6 +66,7 @@ func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
 		Length:         length,
 		NumberOfBlocks: (length + BLOCK_SIZE - 1) / BLOCK_SIZE,
 		Blocks:         make([]*pieceBlock, 0),
+		peerConn:       p.conn,
 	}
 
 	currentOffset := uint32(0)
@@ -86,10 +83,11 @@ func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
 		currentOffset += blockLength
 	}
 
+	p.pieceMap[sp.Index] = sp
 	return sp
 }
 
-func (sp *StoredPiece) Download(p *Peer, callback CallbackFn) bool {
+func (sp *StoredPiece) Download(p *Peer) {
 	// Make requests for all blocks
 	for _, block := range sp.Blocks {
 		go func() {
@@ -98,33 +96,6 @@ func (sp *StoredPiece) Download(p *Peer, callback CallbackFn) bool {
 				fmt.Printf("error making request for block: %v\n", err)
 			}
 		}()
-	}
-
-	sp.peerConn = p.conn
-
-	// Loop to recieve the messages on the connection
-	// and call the HandlePieceMessage function
-	for {
-		message, err := p.RecieveMessage()
-		if err != nil {
-			p.Log("error receiving message: %v", err)
-		}
-
-		m, err := NewPieceMessage(message)
-		if err != nil {
-			p.Log("error creating PieceMessage: %v", err)
-		}
-
-		if m.PieceIndex == sp.Index {
-			err = sp.HandlePieceMessage(m)
-			if err != nil {
-				p.Log("error handling piece message: %v", err)
-			}
-		}
-
-		if sp.IsComplete() {
-			return callback(sp)
-		}
 	}
 }
 

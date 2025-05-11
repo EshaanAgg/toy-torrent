@@ -13,8 +13,9 @@ type Peer struct {
 	IP   string
 	Port int
 
-	conn   net.Conn
-	logger *log.Logger
+	conn     net.Conn
+	logger   *log.Logger
+	pieceMap map[uint32]*StoredPiece
 }
 
 // NewPeerFromAddr initializes a Peer and establishes a TCP connection to it.
@@ -34,35 +35,32 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 		return nil, fmt.Errorf("error connecting to address %s: %w", addr, err)
 	}
 
-	logger := log.New(conn, fmt.Sprintf("[%s:%d] ", host, portInt), log.LstdFlags)
+	logger := log.New(conn, fmt.Sprintf("[%s:%d] ", host, portInt), 0)
 	logger.SetOutput(log.Writer())
 
 	return &Peer{
-		IP:     host,
-		Port:   portInt,
-		conn:   conn,
-		logger: logger,
+		IP:       host,
+		Port:     portInt,
+		conn:     conn,
+		logger:   logger,
+		pieceMap: make(map[uint32]*StoredPiece),
 	}, nil
 }
 
 // SendMessage sends a message to the peer with a 4-byte length prefix.
-// The length does NOT include the 4-byte prefix itself.
-func (p *Peer) SendMessage(data []byte) error {
-	length := uint32(len(data))
-	lengthPrefix := make([]byte, 4)
-	binary.BigEndian.PutUint32(lengthPrefix, length)
+func (p *Peer) SendMessage(messageBytes []byte) error {
+	// Prepend the length of the message as a 4-byte integer
+	length := uint32(len(messageBytes))
+	data := make([]byte, 4)
+	binary.BigEndian.PutUint32(data, length)
 
-	// Write length prefix
-	_, err := p.conn.Write(lengthPrefix)
+	// Append the message bytes and send
+	data = append(data, messageBytes...)
+	_, err := p.conn.Write(data)
 	if err != nil {
-		return fmt.Errorf("error sending length prefix: %v", err)
+		return fmt.Errorf("error sending message: %v", err)
 	}
 
-	// Write message body
-	_, err = p.conn.Write(data)
-	if err != nil {
-		return fmt.Errorf("error sending message body: %v", err)
-	}
 	return nil
 }
 
@@ -82,11 +80,11 @@ func (p *Peer) RecieveMessage() ([]byte, error) {
 	}
 
 	message := make([]byte, length)
-	fmt.Println("recieved message length:", length, "message:", message)
 	_, err = p.conn.Read(message)
 	if err != nil {
 		return nil, fmt.Errorf("error reading message body: %v", err)
 	}
+
 	return message, nil
 }
 
@@ -201,5 +199,47 @@ func (p *Peer) blockTillUnchokeMessage() error {
 		}
 
 		p.Log("Recieved message bytes: %q while waiting for unchoke message", msg)
+	}
+}
+
+type CompletePieceCallback func(sp *StoredPiece)
+
+// RegisterPieceMessageHandler registers a callback to be called when a piece message is received.
+// It continuously listens for incoming messages and processes them.
+// When a piece is downloaded completely, it calls the provided callback function.
+func (p *Peer) RegisterPieceMessageHandler(callback CompletePieceCallback) {
+	for {
+		message, err := p.RecieveMessage()
+		if err != nil {
+			p.Log("error receiving message: %v", err)
+		}
+
+		if message[0] != PIECE_MESSAGE_ID {
+			p.Log("recieved message with ID = %d, expected PIECE_MESSAGE_ID = %d", message[0], PIECE_MESSAGE_ID)
+			continue
+		}
+
+		m, err := NewPieceMessage(message)
+		if err != nil {
+			p.Log("error creating PieceMessage: %v", err)
+		}
+		p.Log("recieved piece message for piece_idx = %d, begin_idx = %d, block_len = %d", m.PieceIndex, m.Begin/BLOCK_SIZE, len(m.Block))
+
+		piece, ok := p.pieceMap[m.PieceIndex]
+		if !ok {
+			p.Log("piece with index %d not found in piece map", m.PieceIndex)
+			continue
+		}
+
+		err = piece.HandlePieceMessage(m)
+		if err != nil {
+			p.Log("error handling piece message: %v", err)
+		}
+
+		if piece.IsComplete() {
+			p.Log("piece %d is complete", piece.Index)
+			callback(piece)
+			delete(p.pieceMap, piece.Index)
+		}
 	}
 }
