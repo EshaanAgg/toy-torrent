@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 	"strconv"
+	"sync"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
 	"github.com/EshaanAgg/toy-bittorrent/app/utils"
@@ -49,34 +48,14 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 	// TODO: Fix this assumption
 	peer := peers[0]
 	err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
+	wg := sync.WaitGroup{}
+	peer.SetWg(&wg)
 	if err != nil {
 		fmt.Printf("error preparing to get piece data: %v\n", err)
 		return
 	}
-	pieceHash := fileInfo.InfoDict.Pieces[pieceIdx]
 
-	go peer.RegisterPieceMessageHandler(func(sp *types.StoredPiece) {
-		data := sp.GetData()
-
-		// Create the output file and write the piece data to it
-		err := utils.MakeFileWithData(args[1], data)
-		if err != nil {
-			fmt.Printf("error writing piece data to file: %v\n", err)
-		}
-
-		// Verify the piece hash
-		hash, err := utils.SHA1Hash(data)
-		if err != nil {
-			fmt.Printf("error hashing piece data: %v\n", err)
-		}
-
-		if bytes.Equal(hash, pieceHash) {
-			fmt.Printf("piece %d hash verified\n", pieceIdx)
-		} else {
-			fmt.Printf("piece %d hash verification failed\n", pieceIdx)
-		}
-		os.Exit(0) // Exit the program after writing the piece
-	})
+	go peer.RegisterPieceMessageHandler()
 
 	// The length of the last piece may be less than the piece length
 	pieceLength := fileInfo.InfoDict.PieceLength
@@ -85,9 +64,12 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		pieceLength = fileLength - (pieceIdx * pieceLength)
 	}
 
-	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(pieceLength))
-	sp.Download(peer) // Start downloading the piece
+	pieceHash := fileInfo.InfoDict.Pieces[pieceIdx]
+	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(pieceLength), pieceHash)
 
-	for {
+	wg.Wait() // Wait for all the pieces to be downloaded
+	err = utils.MakeFileWithData(args[1], sp.GetData())
+	if err != nil {
+		fmt.Printf("error writing data to file: %v\n", err)
 	}
 }

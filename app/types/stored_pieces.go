@@ -1,10 +1,13 @@
 package types
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"sync/atomic"
+
+	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
 // pieceBlock represents a block of data received from a peer.
@@ -50,20 +53,23 @@ func (pb *pieceBlock) makeRequest(p *Peer, pieceIdx uint32) error {
 
 // StoredPiece represents a piece of data that needs to be downloaded.
 type StoredPiece struct {
-	Index          uint32
-	Length         uint32 // The total length of the piece, in bytes
-	NumberOfBlocks uint32 // The number of blocks in the piece
+	Index  uint32
+	Length uint32 // The total length of the piece, in bytes
+	Hash   []byte
 
+	NumberOfBlocks     uint32 // The number of blocks in the piece
 	Blocks             []*pieceBlock
 	RecievedBlockCount atomic.Uint32 // The number of blocks received
 
 	peerConn net.Conn
 }
 
-func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
+func (p *Peer) NewStoredPiece(index, length uint32, hash []byte) *StoredPiece {
 	sp := &StoredPiece{
-		Index:          index,
-		Length:         length,
+		Index:  index,
+		Length: length,
+		Hash:   hash,
+
 		NumberOfBlocks: (length + BLOCK_SIZE - 1) / BLOCK_SIZE,
 		Blocks:         make([]*pieceBlock, 0),
 		peerConn:       p.conn,
@@ -83,12 +89,17 @@ func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
 		currentOffset += blockLength
 	}
 
-	p.pieceMap[sp.Index] = sp
+	// Register the piece with the peer
+	p.pieceMap[index] = sp
+	if p.completeWg != nil {
+		p.completeWg.Add(1)
+	}
+
+	go sp.Download(p)
 	return sp
 }
 
 func (sp *StoredPiece) Download(p *Peer) {
-	// Make requests for all blocks
 	for _, block := range sp.Blocks {
 		go func() {
 			err := block.makeRequest(p, sp.Index)
@@ -133,4 +144,17 @@ func (sp *StoredPiece) GetData() []byte {
 		d = append(d, b.data...)
 	}
 	return d
+}
+
+func (sp *StoredPiece) VerifyHash() error {
+	hash, err := utils.SHA1Hash(sp.GetData())
+	if err != nil {
+		return fmt.Errorf("error hashing piece data: %v", err)
+	}
+
+	if !bytes.Equal(hash, sp.Hash) {
+		return fmt.Errorf("piece hash verification failed, expected %x, got %x", sp.Hash, hash)
+	}
+
+	return nil
 }

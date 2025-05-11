@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"sync"
 )
 
 // Peer represents a remote peer in the network.
@@ -15,7 +16,9 @@ type Peer struct {
 
 	conn     net.Conn
 	logger   *log.Logger
-	pieceMap map[uint32]*StoredPiece
+	pieceMap map[uint32]*StoredPiece // Map of piece index to StoredPiece
+
+	completeWg *sync.WaitGroup
 }
 
 // NewPeerFromAddr initializes a Peer and establishes a TCP connection to it.
@@ -45,6 +48,10 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 		logger:   logger,
 		pieceMap: make(map[uint32]*StoredPiece),
 	}, nil
+}
+
+func (p *Peer) SetWg(wg *sync.WaitGroup) {
+	p.completeWg = wg
 }
 
 // SendMessage sends a message to the peer with a 4-byte length prefix.
@@ -128,8 +135,8 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 		PeerID:   s.PeerID,
 		InfoHash: infoHash,
 	}
-	p.Log("Initializing handshake")
 
+	p.Log("Initializing handshake")
 	_, err := p.conn.Write(handshake.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("error sending handshake: %v", err)
@@ -202,16 +209,14 @@ func (p *Peer) blockTillUnchokeMessage() error {
 	}
 }
 
-type CompletePieceCallback func(sp *StoredPiece)
-
-// RegisterPieceMessageHandler registers a callback to be called when a piece message is received.
-// It continuously listens for incoming messages and processes them.
+// RegisterPieceMessageHandler continuously listens for incoming messages and processes them.
 // When a piece is downloaded completely, it calls the provided callback function.
-func (p *Peer) RegisterPieceMessageHandler(callback CompletePieceCallback) {
+func (p *Peer) RegisterPieceMessageHandler() {
 	for {
 		message, err := p.RecieveMessage()
 		if err != nil {
 			p.Log("error receiving message: %v", err)
+			continue
 		}
 
 		if message[0] != PIECE_MESSAGE_ID {
@@ -222,6 +227,7 @@ func (p *Peer) RegisterPieceMessageHandler(callback CompletePieceCallback) {
 		m, err := NewPieceMessage(message)
 		if err != nil {
 			p.Log("error creating PieceMessage: %v", err)
+			continue
 		}
 		p.Log("recieved piece message for piece_idx = %d, begin_idx = %d, block_len = %d", m.PieceIndex, m.Begin/BLOCK_SIZE, len(m.Block))
 
@@ -234,12 +240,21 @@ func (p *Peer) RegisterPieceMessageHandler(callback CompletePieceCallback) {
 		err = piece.HandlePieceMessage(m)
 		if err != nil {
 			p.Log("error handling piece message: %v", err)
+			continue
 		}
 
 		if piece.IsComplete() {
 			p.Log("piece %d is complete", piece.Index)
-			callback(piece)
-			delete(p.pieceMap, piece.Index)
+			err := piece.VerifyHash()
+			if err != nil {
+				p.Log("error verifying piece hash: %v", err)
+				continue
+			}
+			p.Log("piece %d hash verified", piece.Index)
+
+			if p.completeWg != nil {
+				p.completeWg.Done()
+			}
 		}
 	}
 }
