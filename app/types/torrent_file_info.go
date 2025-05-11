@@ -61,8 +61,6 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 		return nil, fmt.Errorf("error hashing the info dictionary: %v", err)
 	}
 
-	fmt.Println("pieces", infoDict.Map["pieces"].GetList().Array)
-
 	return &TorrentFileInfo{
 		TrackerURL: string(d.Map["announce"].GetString().Value),
 		CreatedBy:  string(d.Map["created by"].GetString().Value),
