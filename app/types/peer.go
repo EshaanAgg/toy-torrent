@@ -127,6 +127,8 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 		PeerID:   s.PeerID,
 		InfoHash: infoHash,
 	}
+	p.Log("Initializing handshake")
+
 	_, err := p.conn.Write(handshake.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("error sending handshake: %v", err)
@@ -138,6 +140,8 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 		return nil, fmt.Errorf("error reading handshake response: %v", err)
 	}
 	recievedHandshake := NewHandshakeFromBytes(response)
+	p.Log("Handshaking completed")
+
 	return recievedHandshake, nil
 }
 
@@ -150,6 +154,7 @@ func (p *Peer) SendInterested() error {
 	if err != nil {
 		return fmt.Errorf("error sending interested message: %v", err)
 	}
+	p.Log("Sent interested message")
 
 	err = p.blockTillUnchokeMessage()
 	if err != nil {
@@ -166,9 +171,10 @@ func (p *Peer) blockTillBitFieldMessage() error {
 		if err != nil {
 			return fmt.Errorf("error receiving message: %v", err)
 		}
+
 		if msg[0] == BITFIELD_MESSAGE_ID {
-			// bitfield message received
 			// TODO: Parse the response to get all the pieces present
+			p.Log("Recieved bitfield message")
 			return nil
 
 		}
@@ -185,8 +191,10 @@ func (p *Peer) blockTillUnchokeMessage() error {
 		if err != nil {
 			return fmt.Errorf("error receiving message: %v", err)
 		}
+
 		if msg[0] == UNCHOKE_MESSAGE_ID {
-			return nil // unchoke message received
+			p.Log("Recieved unchoke message")
+			return nil
 		}
 
 		p.Log("Recieved message bytes: %q while waiting for unchoke message", msg)

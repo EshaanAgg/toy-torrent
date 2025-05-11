@@ -31,7 +31,7 @@ func (pb *pieceBlock) setData(data []byte) {
 	pb.recieved = true
 }
 
-func (pb *pieceBlock) makeRequest(conn net.Conn, pieceIdx uint32) error {
+func (pb *pieceBlock) makeRequest(p *Peer, pieceIdx uint32) error {
 	message := make([]byte, 13)
 
 	message[0] = REQUEST_MESSAGE_ID
@@ -39,11 +39,12 @@ func (pb *pieceBlock) makeRequest(conn net.Conn, pieceIdx uint32) error {
 	binary.BigEndian.PutUint32(message[5:], pb.byteOffset)
 	binary.BigEndian.PutUint32(message[9:], pb.length)
 
-	_, err := conn.Write(message)
+	_, err := p.conn.Write(message)
 	if err != nil {
 		return fmt.Errorf("error sending request message: %v", err)
 	}
 
+	p.Log("sent request message for piece %d, block %d", pieceIdx, pb.byteOffset)
 	return nil
 }
 
@@ -89,7 +90,7 @@ func (sp *StoredPiece) Download(p *Peer, callback func(*StoredPiece)) []byte {
 	// Make requests for all blocks
 	for _, block := range sp.Blocks {
 		go func() {
-			err := block.makeRequest(p.conn, sp.Index)
+			err := block.makeRequest(p, sp.Index)
 			if err != nil {
 				fmt.Printf("error making request for block: %v\n", err)
 			}
