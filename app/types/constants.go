@@ -1,0 +1,8 @@
+package types
+
+const BLOCK_SIZE uint32 = 16384 // 16 KB
+
+const UNCHOKE_MESSAGE_ID = 1
+const INTERESTED_MESSAGE_ID = 2
+const REQUEST_MESSAGE_ID = 6
+const PIECE_MESSAGE_ID = 7

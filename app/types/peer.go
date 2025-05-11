@@ -69,6 +69,9 @@ func (p *Peer) CloseConnection(s *Server) error {
 	return nil
 }
 
+// PerformHandshake sends a handshake to the peer and waits for a response.
+// It returns the received handshake and an error if any occurred.
+// The state of the peer is updated to PEER_STATE_HANDSHAKED after a successful handshake.
 func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) {
 	conn, err := p.GetConnection(s)
 	if err != nil {
@@ -92,4 +95,20 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 	recievedHandshake := NewHandshakeFromBytes(response)
 	p.State = PEER_STATE_HANDSHAKED
 	return recievedHandshake, nil
+}
+
+func (p *Peer) SendInterested(s *Server) error {
+	conn, err := p.GetConnection(s)
+	if err != nil {
+		return fmt.Errorf("error getting connection: %v", err)
+	}
+
+	// Length -> 4 bytes -> 1 byte for the message ID
+	// Message ID -> 1 byte
+	interested := []byte{0x00, 0x00, 0x00, 0x01, INTERESTED_MESSAGE_ID}
+	_, err = conn.Write(interested)
+	if err != nil {
+		return fmt.Errorf("error sending interested message: %v", err)
+	}
+	return nil
 }
