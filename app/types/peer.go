@@ -35,6 +35,7 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 	}
 
 	logger := log.New(conn, fmt.Sprintf("[%s:%d] ", host, portInt), log.LstdFlags)
+	logger.SetOutput(log.Writer())
 
 	return &Peer{
 		IP:     host,
