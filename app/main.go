@@ -30,6 +30,9 @@ func main() {
 	case "handshake":
 		cmd.HandleHandshake(args[1:], s)
 
+	case "download_piece":
+		cmd.HandleDownloadPiece(args[1:], s)
+
 	default:
 		fmt.Printf("unrecognized command '%s'", args[0])
 	}

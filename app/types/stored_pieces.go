@@ -55,9 +55,12 @@ type StoredPiece struct {
 
 	Blocks             []*pieceBlock
 	RecievedBlockCount atomic.Uint32 // The number of blocks received
+
+	peerConn net.Conn
+	callback func(*StoredPiece) // Callback function to be called when the piece is complete
 }
 
-func NewStoredPiece(index, length uint32) *StoredPiece {
+func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
 	sp := &StoredPiece{
 		Index:          index,
 		Length:         length,
@@ -66,13 +69,25 @@ func NewStoredPiece(index, length uint32) *StoredPiece {
 	}
 
 	currentOffset := uint32(0)
+
 	for range sp.NumberOfBlocks {
 		blockLength := BLOCK_SIZE
 		if currentOffset+BLOCK_SIZE > length {
 			blockLength = length - currentOffset
 		}
-		sp.Blocks = append(sp.Blocks, newPieceBlock(uint32(currentOffset), uint32(blockLength)))
+
+		// Create a block and start a goroutine to make the request
+		block := newPieceBlock(uint32(currentOffset), uint32(blockLength))
+		sp.Blocks = append(sp.Blocks, block)
 		currentOffset += blockLength
+
+		go func() {
+			err := block.makeRequest(p.conn, sp.Index)
+			if err != nil {
+				p.Log("error making request for block %d of piece %d: %v", block.byteOffset, sp.Index, err)
+				return
+			}
+		}()
 	}
 
 	return sp
@@ -99,7 +114,18 @@ func (sp *StoredPiece) HandlePieceMessage(m *PieceMessage) error {
 	sp.Blocks[blockIdx].setData(m.Block)
 	sp.RecievedBlockCount.Add(1)
 
+	// If the piece is complete, call the callback function
+	if sp.IsComplete() {
+		if sp.callback != nil {
+			sp.callback(sp)
+		}
+	}
+
 	return nil
+}
+
+func (sp *StoredPiece) SetCallback(callback func(*StoredPiece)) {
+	sp.callback = callback
 }
 
 func (sp *StoredPiece) GetData() []byte {

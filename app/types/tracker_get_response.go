@@ -30,10 +30,13 @@ func NewTrackerGetResponse(data []byte) (*TrackerGetResponse, error) {
 	for i := 0; i < len(peerString); i += 6 {
 		ip := fmt.Sprintf("%d.%d.%d.%d", peerString[i], peerString[i+1], peerString[i+2], peerString[i+3])
 		port := int(peerString[i+4])<<8 + int(peerString[i+5])
-		peers = append(peers, &Peer{
-			IP:   ip,
-			Port: port,
-		})
+
+		p, err := NewPeerFromAddr(fmt.Sprintf("%s:%d", ip, port))
+		if err != nil {
+			return nil, fmt.Errorf("error creating peer from address: %w", err)
+		}
+
+		peers = append(peers, p)
 	}
 
 	return &TrackerGetResponse{

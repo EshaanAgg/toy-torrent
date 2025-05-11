@@ -8,11 +8,33 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
+type InfoDict struct {
+	Length      int
+	Name        string
+	PieceLength int
+	Pieces      [][]byte // Hashes of each piece
+}
+
 type TorrentFileInfo struct {
 	TrackerURL string
-	FileSize   int
+	CreatedBy  string
+	InfoDict   *InfoDict
 	InfoHash   []byte
-	InfoDict   *bencode.BencodeDictionary
+}
+
+func piecesFromString(pieces []byte) [][]byte {
+	// Each piece hash is 20 bytes long
+	pieceLength := 20
+	numPieces := len(pieces) / pieceLength
+
+	pieceHashes := make([][]byte, numPieces)
+	for i := 0; i < numPieces; i++ {
+		start := i * pieceLength
+		end := start + pieceLength
+		pieceHashes[i] = []byte(pieces[start:end])
+	}
+
+	return pieceHashes
 }
 
 // NewTorrentFileInfo creates a new TorrentFileInfo struct from the given torrent file path.
@@ -31,9 +53,7 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 	// Access the nested elements directly as we can be assured
 	// that the file passed is a valid torrent file
 	d := bd.GetDictionary()
-	trackerUrl := d.Map["announce"].GetString().Value
 	infoDict := d.Map["info"].GetDictionary()
-	fileSize := infoDict.Map["length"].GetInteger().Value
 
 	// Parse the info dictionary to get the info hash
 	infoHash, err := utils.SHA1Hash(infoDict.Encode())
@@ -41,11 +61,18 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 		return nil, fmt.Errorf("error hashing the info dictionary: %v", err)
 	}
 
+	fmt.Println("pieces", infoDict.Map["pieces"].GetList().Array)
+
 	return &TorrentFileInfo{
-		TrackerURL: string(trackerUrl),
-		FileSize:   fileSize,
+		TrackerURL: string(d.Map["announce"].GetString().Value),
+		CreatedBy:  string(d.Map["created by"].GetString().Value),
 		InfoHash:   infoHash,
-		InfoDict:   infoDict,
+		InfoDict: &InfoDict{
+			Length:      infoDict.Map["length"].GetInteger().Value,
+			Name:        string(infoDict.Map["name"].GetString().Value),
+			PieceLength: infoDict.Map["piece length"].GetInteger().Value,
+			Pieces:      piecesFromString(infoDict.Map["pieces"].GetString().Value),
+		},
 	}, nil
 }
 

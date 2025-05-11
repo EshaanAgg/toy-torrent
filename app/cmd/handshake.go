@@ -22,7 +22,7 @@ func HandleHandshake(args []string, server *types.Server) {
 
 	peer, err := types.NewPeerFromAddr(args[1])
 	if err != nil {
-		fmt.Printf("error creating Peer: %v\n", err)
+		fmt.Printf("error creating peer: %v\n", err)
 		return
 	}
 
