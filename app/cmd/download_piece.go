@@ -85,7 +85,7 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		pieceLength = fileLength - (pieceIdx * pieceLength)
 	}
 
-	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(fileInfo.InfoDict.PieceLength))
+	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(pieceLength))
 	sp.Download(peer) // Start downloading the piece
 
 	for {
