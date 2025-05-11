@@ -78,6 +78,13 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		os.Exit(0) // Exit the program after writing the piece
 	})
 
+	// The length of the last piece may be less than the piece length
+	pieceLength := fileInfo.InfoDict.PieceLength
+	fileLength := fileInfo.InfoDict.Length
+	if (pieceIdx+1)*pieceLength > fileLength {
+		pieceLength = fileLength - (pieceIdx * pieceLength)
+	}
+
 	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(fileInfo.InfoDict.PieceLength))
 	sp.Download(peer) // Start downloading the piece
 
