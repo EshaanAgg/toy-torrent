@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
+	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
 func HandleDownloadPiece(args []string, s *types.Server) {
@@ -16,6 +19,12 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 	fileInfo, err := types.NewTorrentFileInfo(torrentFile)
 	if err != nil {
 		fmt.Printf("error creating TorrentFileInfo: %v\n", err)
+		return
+	}
+
+	pieceIdx, err := strconv.Atoi(args[3])
+	if err != nil {
+		fmt.Printf("error converting piece index to int: %v\n", err)
 		return
 	}
 
@@ -33,4 +42,25 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 	// Take the first peer from the list to download the piece from
 	// We can do this as all the peers have all the pieces.
 	// TODO: Fix this assumption
+	peer := peers[0]
+	err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
+	if err != nil {
+		fmt.Printf("error preparing to get piece data: %v\n", err)
+		return
+	}
+
+	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(fileInfo.InfoDict.PieceLength))
+	sp.Download(peer, func(sp *types.StoredPiece) {
+		fmt.Printf("piece %d downloaded\n", pieceIdx)
+		err := utils.MakeFileWithData(args[1], sp.GetData())
+		if err != nil {
+			fmt.Printf("error writing piece data to file: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	})
+
+	// Block the main thread to keep the program running
+	for {
+	}
 }

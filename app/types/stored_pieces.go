@@ -80,17 +80,46 @@ func (p *Peer) NewStoredPiece(index, length uint32) *StoredPiece {
 		block := newPieceBlock(uint32(currentOffset), uint32(blockLength))
 		sp.Blocks = append(sp.Blocks, block)
 		currentOffset += blockLength
+	}
 
+	return sp
+}
+
+func (sp *StoredPiece) Download(p *Peer, callback func(*StoredPiece)) []byte {
+	// Make requests for all blocks
+	for _, block := range sp.Blocks {
 		go func() {
 			err := block.makeRequest(p.conn, sp.Index)
 			if err != nil {
-				p.Log("error making request for block %d of piece %d: %v", block.byteOffset, sp.Index, err)
-				return
+				fmt.Printf("error making request for block: %v\n", err)
 			}
 		}()
 	}
 
-	return sp
+	// Set the callback function
+	sp.callback = callback
+	sp.peerConn = p.conn
+
+	// Loop to recieve the messages on the connection
+	// and call the HandlePieceMessage function
+	for {
+		message, err := p.RecieveMessage()
+		if err != nil {
+			p.Log("error receiving message: %v", err)
+		}
+
+		m, err := NewPieceMessage(message)
+		if err != nil {
+			p.Log("error creating PieceMessage: %v", err)
+		}
+
+		if m.PieceIndex == sp.Index {
+			err = sp.HandlePieceMessage(m)
+			if err != nil {
+				p.Log("error handling piece message: %v", err)
+			}
+		}
+	}
 }
 
 func (sp *StoredPiece) IsComplete() bool {
@@ -122,10 +151,6 @@ func (sp *StoredPiece) HandlePieceMessage(m *PieceMessage) error {
 	}
 
 	return nil
-}
-
-func (sp *StoredPiece) SetCallback(callback func(*StoredPiece)) {
-	sp.callback = callback
 }
 
 func (sp *StoredPiece) GetData() []byte {
