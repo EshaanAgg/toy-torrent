@@ -28,7 +28,7 @@ func piecesFromString(pieces []byte) [][]byte {
 	numPieces := len(pieces) / pieceLength
 
 	pieceHashes := make([][]byte, numPieces)
-	for i := 0; i < numPieces; i++ {
+	for i := range numPieces {
 		start := i * pieceLength
 		end := start + pieceLength
 		pieceHashes[i] = []byte(pieces[start:end])
