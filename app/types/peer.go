@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 )
@@ -11,7 +12,9 @@ import (
 type Peer struct {
 	IP   string
 	Port int
-	conn net.Conn
+
+	conn   net.Conn
+	logger *log.Logger
 }
 
 // NewPeerFromAddr initializes a Peer and establishes a TCP connection to it.
@@ -31,10 +34,13 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 		return nil, fmt.Errorf("error connecting to address %s: %w", addr, err)
 	}
 
+	logger := log.New(conn, fmt.Sprintf("[%s:%d] ", host, portInt), log.LstdFlags)
+
 	return &Peer{
-		IP:   host,
-		Port: portInt,
-		conn: conn,
+		IP:     host,
+		Port:   portInt,
+		conn:   conn,
+		logger: logger,
 	}, nil
 }
 
@@ -113,13 +119,7 @@ func (p *Peer) CloseConnection() error {
 }
 
 func (p *Peer) Log(s string, vals ...any) {
-	args := []any{
-		p.IP,
-		p.Port,
-	}
-	args = append(args, vals...)
-	msg := fmt.Sprintf("[%s:%d] %s\n", p.IP, p.Port, s)
-	fmt.Printf(msg, args...)
+	p.logger.Printf(s+"\n", vals...)
 }
 
 // PerformHandshake sends a handshake to the peer and waits for a response.
