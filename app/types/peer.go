@@ -258,3 +258,12 @@ func (p *Peer) RegisterPieceMessageHandler() {
 		}
 	}
 }
+
+func (p *Peer) GetPieceData(index uint32) ([]byte, error) {
+	piece, ok := p.pieceMap[index]
+	if !ok {
+		return nil, fmt.Errorf("piece with index %d not found in piece map", index)
+	}
+
+	return piece.GetData(), nil
+}

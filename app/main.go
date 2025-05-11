@@ -8,6 +8,16 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
 
+type HandlerFn func(args []string, server *types.Server)
+
+var handlers = map[string]HandlerFn{
+	"decode":         cmd.HandleDecode,
+	"info":           cmd.HandleInfo,
+	"peers":          cmd.HandlePeers,
+	"handshake":      cmd.HandleHandshake,
+	"download_piece": cmd.HandleDownloadPiece,
+}
+
 func main() {
 	args := os.Args[1:]
 	s := types.NewServer()
@@ -17,23 +27,10 @@ func main() {
 		return
 	}
 
-	switch args[0] {
-	case "decode":
-		cmd.HandleDecode(args[1:])
-
-	case "info":
-		cmd.HandleInfo(args[1:])
-
-	case "peers":
-		cmd.HandlePeers(args[1:], s)
-
-	case "handshake":
-		cmd.HandleHandshake(args[1:], s)
-
-	case "download_piece":
-		cmd.HandleDownloadPiece(args[1:], s)
-
-	default:
-		fmt.Printf("unrecognized command '%s'", args[0])
+	handler, ok := handlers[args[0]]
+	if !ok {
+		fmt.Printf("unknown command: %s\n", args[0])
+		return
 	}
+	handler(args[1:], s)
 }

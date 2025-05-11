@@ -9,6 +9,15 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
+func getPieceLength(fileInfo *types.TorrentFileInfo, pieceIdx int) uint32 {
+	pieceLength := fileInfo.InfoDict.PieceLength
+	fileLength := fileInfo.InfoDict.Length
+	if (pieceIdx+1)*pieceLength > fileLength {
+		pieceLength = fileLength - (pieceIdx * pieceLength)
+	}
+	return uint32(pieceLength)
+}
+
 func HandleDownloadPiece(args []string, s *types.Server) {
 	if len(args) != 4 || args[0] != "-o" {
 		fmt.Println("incorrect arguments passed. usage: go-torrent download_piece -o <output-file> <token-file> <piece-index>")
@@ -54,18 +63,11 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		fmt.Printf("error preparing to get piece data: %v\n", err)
 		return
 	}
-
 	go peer.RegisterPieceMessageHandler()
 
-	// The length of the last piece may be less than the piece length
-	pieceLength := fileInfo.InfoDict.PieceLength
-	fileLength := fileInfo.InfoDict.Length
-	if (pieceIdx+1)*pieceLength > fileLength {
-		pieceLength = fileLength - (pieceIdx * pieceLength)
-	}
-
+	pieceLen := getPieceLength(fileInfo, pieceIdx)
 	pieceHash := fileInfo.InfoDict.Pieces[pieceIdx]
-	sp := peer.NewStoredPiece(uint32(pieceIdx), uint32(pieceLength), pieceHash)
+	sp := peer.NewStoredPiece(uint32(pieceIdx), pieceLen, pieceHash)
 
 	wg.Wait() // Wait for all the pieces to be downloaded
 	err = utils.MakeFileWithData(args[1], sp.GetData())
