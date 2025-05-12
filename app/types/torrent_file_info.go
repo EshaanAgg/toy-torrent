@@ -17,7 +17,6 @@ type InfoDict struct {
 
 type TorrentFileInfo struct {
 	TrackerURL string
-	CreatedBy  string
 	InfoDict   *InfoDict
 	InfoHash   []byte
 }
@@ -63,7 +62,6 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 
 	return &TorrentFileInfo{
 		TrackerURL: string(d.Map["announce"].GetString().Value),
-		CreatedBy:  string(d.Map["created by"].GetString().Value),
 		InfoHash:   infoHash,
 		InfoDict: &InfoDict{
 			Length:      infoDict.Map["length"].GetInteger().Value,
