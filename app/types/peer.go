@@ -16,11 +16,11 @@ type Peer struct {
 	IP   string
 	Port int
 
-	conn     net.Conn
-	logger   *log.Logger
-	pieceMap map[uint32]*StoredPiece // Map of piece index to StoredPiece
-
-	completeWg *sync.WaitGroup
+	conn                net.Conn
+	logger              *log.Logger
+	pieceMap            map[uint32]*StoredPiece // Map of piece index to StoredPiece
+	completeWg          *sync.WaitGroup
+	shutMessageListener chan bool
 }
 
 // NewPeerFromAddr initializes a Peer and establishes a TCP connection to it.
@@ -44,11 +44,12 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 	logger.SetOutput(log.Writer())
 
 	return &Peer{
-		IP:       host,
-		Port:     portInt,
-		conn:     conn,
-		logger:   logger,
-		pieceMap: make(map[uint32]*StoredPiece),
+		IP:                  host,
+		Port:                portInt,
+		conn:                conn,
+		logger:              logger,
+		shutMessageListener: make(chan bool),
+		pieceMap:            make(map[uint32]*StoredPiece),
 	}, nil
 }
 
@@ -76,6 +77,15 @@ func (p *Peer) SendMessage(messageBytes []byte) error {
 	return nil
 }
 
+func (p *Peer) readExactBytes(n uint32) ([]byte, error) {
+	data := make([]byte, n)
+	_, err := io.ReadFull(p.conn, data)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %d bytes: %w", n, err)
+	}
+	return data, nil
+}
+
 // RecieveMessage reads a message from the peer.
 // It first reads the 4-byte length prefix, then reads the message of that length.
 func (p *Peer) RecieveMessage() ([]byte, error) {
@@ -85,23 +95,16 @@ func (p *Peer) RecieveMessage() ([]byte, error) {
 		return nil, fmt.Errorf("error reading message length: %w", err)
 	}
 	length := binary.BigEndian.Uint32(lengthPrefix)
-	p.Log("Recieved message length: %d (%q)", length, lengthPrefix)
 
 	// Keep-alive message, so recursively call itself
 	if length == 0 {
 		return p.RecieveMessage()
 	}
 
-	message := make([]byte, length)
-	n, err := p.conn.Read(message)
+	message, err := p.readExactBytes(length)
 	if err != nil {
-		return nil, fmt.Errorf("error reading message body: %w", err)
+		return nil, fmt.Errorf("error reading message: %w", err)
 	}
-	if n != int(length) {
-		return nil, fmt.Errorf("expected to read %d bytes, but got %d", length, n)
-	}
-	p.Log("Recieved message bytes: %q", message[:min(n, 20)])
-
 	return message, nil
 }
 
@@ -121,15 +124,7 @@ func (p *Peer) PrepareToGetPieceData(s *Server, infoHash []byte) error {
 		return fmt.Errorf("error while sending interested message: %w", err)
 	}
 
-	return nil
-}
-
-func (p *Peer) Shutdown() error {
-	err := p.conn.Close()
-	if err != nil {
-		return err
-	}
-	p.conn = nil
+	p.Log("completed initialization. ready to download pieces")
 	return nil
 }
 
@@ -145,7 +140,6 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 		InfoHash: infoHash,
 	}
 
-	p.Log("Initializing handshake")
 	_, err := p.conn.Write(handshake.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("error sending handshake: %w", err)
@@ -157,7 +151,6 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 		return nil, fmt.Errorf("error reading handshake response: %w", err)
 	}
 	recievedHandshake := NewHandshakeFromBytes(response)
-	p.Log("Handshaking completed")
 
 	return recievedHandshake, nil
 }
@@ -171,7 +164,6 @@ func (p *Peer) SendInterested() error {
 	if err != nil {
 		return fmt.Errorf("error sending interested message: %w", err)
 	}
-	p.Log("Sent interested message")
 
 	err = p.blockTillUnchokeMessage()
 	if err != nil {
@@ -191,7 +183,6 @@ func (p *Peer) blockTillBitFieldMessage() error {
 
 		if msg[0] == BITFIELD_MESSAGE_ID {
 			// TODO: Parse the response to get all the pieces present
-			p.Log("Recieved bitfield message")
 			return nil
 
 		}
@@ -210,7 +201,6 @@ func (p *Peer) blockTillUnchokeMessage() error {
 		}
 
 		if msg[0] == UNCHOKE_MESSAGE_ID {
-			p.Log("Recieved unchoke message")
 			return nil
 		}
 
@@ -222,12 +212,6 @@ func (p *Peer) blockTillUnchokeMessage() error {
 // When a piece is downloaded completely, it calls the provided callback function.
 func (p *Peer) RegisterPieceMessageHandler() {
 	for {
-		// Check if the connection is closed
-		if p.conn == nil {
-			return
-		}
-
-		// Read the message from the peer
 		message, err := p.RecieveMessage()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
@@ -263,13 +247,10 @@ func (p *Peer) RegisterPieceMessageHandler() {
 		}
 
 		if piece.IsComplete() {
-			p.Log("piece %d is complete", piece.Index)
 			err := piece.VerifyHash()
 			if err != nil {
 				p.Log("error verifying piece hash: %v", err)
-				continue
 			}
-			p.Log("piece %d hash verified", piece.Index)
 
 			if p.completeWg != nil {
 				p.completeWg.Done()

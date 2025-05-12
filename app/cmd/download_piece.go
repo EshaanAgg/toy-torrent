@@ -51,9 +51,6 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		fmt.Println("no peers found")
 		return
 	}
-	for _, peer := range peers {
-		defer peer.Shutdown()
-	}
 
 	// Take the first peer from the list to download the piece from
 	// We can do this as all the peers have all the pieces.

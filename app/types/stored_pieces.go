@@ -94,7 +94,7 @@ func (p *Peer) NewStoredPiece(index, length uint32, hash []byte) *StoredPiece {
 	if p.completeWg != nil {
 		p.completeWg.Add(1)
 	} else {
-		p.Log("warning: Peer has no WaitGroup set, thus there is no way to know when the piece is downloaded")
+		p.Log("warning: Peer has no waitgroup set, thus there is no way to know when the piece is downloaded")
 	}
 
 	sp.Download(p)

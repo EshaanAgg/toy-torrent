@@ -8,7 +8,7 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
-func HandleDownloadFile(args []string, s *types.Server) {
+func HandleDownload(args []string, s *types.Server) {
 	if len(args) != 3 || args[0] != "-o" {
 		println("incorrect arguments passed. usage: go-torrent download_file -o <output-file> <token-file>")
 		return

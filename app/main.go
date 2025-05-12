@@ -16,6 +16,7 @@ var handlers = map[string]HandlerFn{
 	"peers":          cmd.HandlePeers,
 	"handshake":      cmd.HandleHandshake,
 	"download_piece": cmd.HandleDownloadPiece,
+	"download":       cmd.HandleDownload,
 }
 
 func main() {

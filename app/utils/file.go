@@ -3,14 +3,18 @@ package utils
 import (
 	"fmt"
 	"os"
+	"path"
 )
 
 func MakeFileWithData(filePath string, data []byte) error {
 	// Create the file with all the parent directories
-	err := os.MkdirAll(filePath, os.ModePerm)
+	parentFolder := path.Dir(filePath)
+	err := os.MkdirAll(parentFolder, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error creating directories for file: %w", err)
 	}
+
+	// Create the file
 	file, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
