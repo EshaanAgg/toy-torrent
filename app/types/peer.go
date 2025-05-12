@@ -145,8 +145,7 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 		return nil, fmt.Errorf("error sending handshake: %w", err)
 	}
 
-	response := make([]byte, 68) // Handshake response size
-	_, err = p.conn.Read(response)
+	response, err := p.readExactBytes(68) // 68 bytes for the handshake response
 	if err != nil {
 		return nil, fmt.Errorf("error reading handshake response: %w", err)
 	}
@@ -247,6 +246,7 @@ func (p *Peer) RegisterPieceMessageHandler() {
 		}
 
 		if piece.IsComplete() {
+			p.Log("piece %d completed", piece.Index)
 			err := piece.VerifyHash()
 			if err != nil {
 				p.Log("error verifying piece hash: %v", err)

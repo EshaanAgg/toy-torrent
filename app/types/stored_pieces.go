@@ -47,7 +47,6 @@ func (pb *pieceBlock) makeRequest(p *Peer, pieceIdx uint32) error {
 		return fmt.Errorf("error sending request message: %w", err)
 	}
 
-	p.Log("sent request message for piece_idx = %d, block_idx = %d", pieceIdx, pb.byteOffset/BLOCK_SIZE)
 	return nil
 }
 
@@ -108,6 +107,7 @@ func (sp *StoredPiece) Download(p *Peer) {
 			fmt.Printf("error making request for block: %v\n", err)
 		}
 	}
+	p.Log("%d blocks requested for piece %d", len(sp.Blocks), sp.Index)
 }
 
 func (sp *StoredPiece) IsComplete() bool {

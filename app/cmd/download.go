@@ -33,7 +33,8 @@ func HandleDownload(args []string, s *types.Server) {
 	}
 
 	piecesCnt := len(fileInfo.InfoDict.Pieces)
-	wg := sync.WaitGroup{}
+	fmt.Printf("pieces count: %d, peers count: %d\n", piecesCnt, len(peers))
+	wg := &sync.WaitGroup{}
 
 	// Assign each of the piece to a peer in round robin fashion
 	for idx := range piecesCnt {
@@ -47,7 +48,7 @@ func HandleDownload(args []string, s *types.Server) {
 				println("error preparing to get piece data: ", err)
 				return
 			}
-			peer.SetWg(&wg)
+			peer.SetWg(wg)
 			go peer.RegisterPieceMessageHandler()
 		}
 
