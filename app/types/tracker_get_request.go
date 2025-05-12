@@ -22,7 +22,9 @@ type TrackerGetRequest struct {
 
 // Makes a GET request to a HTTP tracker to discover peers
 // to download the file from.
-func (r *TrackerGetRequest) MakeRequest() (*TrackerGetResponse, error) {
+// connectToPeers is a boolean that indicates whether to make a network connection
+// to each of the peers returned by the tracker.
+func (r *TrackerGetRequest) MakeRequest(connectToPeers bool) (*TrackerGetResponse, error) {
 	// URL query parameters
 	p := url.Values{}
 	p.Add("info_hash", string(r.InfoHash))
@@ -46,7 +48,7 @@ func (r *TrackerGetRequest) MakeRequest() (*TrackerGetResponse, error) {
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	response, err := NewTrackerGetResponse(data)
+	response, err := NewTrackerGetResponse(data, connectToPeers)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding tracker response: %w", err)
 	}

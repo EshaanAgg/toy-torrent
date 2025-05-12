@@ -13,7 +13,7 @@ type TrackerGetResponse struct {
 	Peers    []*Peer
 }
 
-func NewTrackerGetResponse(data []byte) (*TrackerGetResponse, error) {
+func NewTrackerGetResponse(data []byte, connectToPeers bool) (*TrackerGetResponse, error) {
 	d, err := bencode.NewBencodeData(data)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding bencode data: %w", err)
@@ -31,12 +31,18 @@ func NewTrackerGetResponse(data []byte) (*TrackerGetResponse, error) {
 		ip := fmt.Sprintf("%d.%d.%d.%d", peerString[i], peerString[i+1], peerString[i+2], peerString[i+3])
 		port := int(peerString[i+4])<<8 + int(peerString[i+5])
 
-		p, err := NewPeerFromAddr(fmt.Sprintf("%s:%d", ip, port))
-		if err != nil {
-			return nil, fmt.Errorf("error creating peer from address: %w", err)
+		if connectToPeers {
+			p, err := NewPeerFromAddr(fmt.Sprintf("%s:%d", ip, port))
+			if err != nil {
+				return nil, fmt.Errorf("error creating peer from address: %w", err)
+			}
+			peers = append(peers, p)
+		} else {
+			peers = append(peers, &Peer{
+				IP:   ip,
+				Port: port,
+			})
 		}
-
-		peers = append(peers, p)
 	}
 
 	return &TrackerGetResponse{

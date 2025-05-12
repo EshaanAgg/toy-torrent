@@ -22,7 +22,7 @@ func HandleDownload(args []string, s *types.Server) {
 		return
 	}
 
-	peers, err := getPeers(fileInfo, s)
+	peers, err := getPeers(fileInfo, s, true)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return

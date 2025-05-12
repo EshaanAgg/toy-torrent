@@ -7,7 +7,7 @@ import (
 )
 
 // Parses the torrent file and retrieves the peers from the tracker.
-func getPeers(fileInfo *types.TorrentFileInfo, server *types.Server) ([]*types.Peer, error) {
+func getPeers(fileInfo *types.TorrentFileInfo, server *types.Server, makeConnection bool) ([]*types.Peer, error) {
 	req := types.TrackerGetRequest{
 		TrackerURL: fileInfo.TrackerURL,
 		InfoHash:   fileInfo.InfoHash,
@@ -18,7 +18,7 @@ func getPeers(fileInfo *types.TorrentFileInfo, server *types.Server) ([]*types.P
 		Compact:    1,
 		Left:       fileInfo.InfoDict.Length,
 	}
-	resp, err := req.MakeRequest()
+	resp, err := req.MakeRequest(makeConnection)
 	if err != nil {
 		return nil, fmt.Errorf("error making request to tracker: %w", err)
 	}
@@ -44,7 +44,7 @@ func HandlePeers(args []string, server *types.Server) {
 		return
 	}
 
-	peers, err := getPeers(fileInfo, server)
+	peers, err := getPeers(fileInfo, server, false)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return
