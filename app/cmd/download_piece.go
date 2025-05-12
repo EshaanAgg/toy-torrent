@@ -41,15 +41,18 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		return
 	}
 
+	// Get the peers from the tracker
 	peers, err := getPeers(fileInfo, s)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return
 	}
-
 	if len(peers) == 0 {
 		fmt.Println("no peers found")
 		return
+	}
+	for _, peer := range peers {
+		defer peer.Shutdown()
 	}
 
 	// Take the first peer from the list to download the piece from
@@ -57,17 +60,19 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 	// TODO: Fix this assumption
 	peer := peers[0]
 	err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
-	wg := sync.WaitGroup{}
-	peer.SetWg(&wg)
 	if err != nil {
 		fmt.Printf("error preparing to get piece data: %v\n", err)
 		return
 	}
-	go peer.RegisterPieceMessageHandler()
+	wg := sync.WaitGroup{}
+	peer.SetWg(&wg)
 
+	// Register the piece with the peer
 	pieceLen := getPieceLength(fileInfo, pieceIdx)
 	pieceHash := fileInfo.InfoDict.Pieces[pieceIdx]
 	sp := peer.NewStoredPiece(uint32(pieceIdx), pieceLen, pieceHash)
+
+	go peer.RegisterPieceMessageHandler()
 
 	wg.Wait() // Wait for all the pieces to be downloaded
 	err = utils.MakeFileWithData(args[1], sp.GetData())

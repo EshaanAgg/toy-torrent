@@ -20,7 +20,7 @@ func getPeers(fileInfo *types.TorrentFileInfo, server *types.Server) ([]*types.P
 	}
 	resp, err := req.MakeRequest()
 	if err != nil {
-		return nil, fmt.Errorf("error making request to tracker: %v", err)
+		return nil, fmt.Errorf("error making request to tracker: %w", err)
 	}
 
 	return resp.Peers, nil

@@ -44,7 +44,7 @@ func (pb *pieceBlock) makeRequest(p *Peer, pieceIdx uint32) error {
 
 	err := p.SendMessage(message)
 	if err != nil {
-		return fmt.Errorf("error sending request message: %v", err)
+		return fmt.Errorf("error sending request message: %w", err)
 	}
 
 	p.Log("sent request message for piece_idx = %d, block_idx = %d", pieceIdx, pb.byteOffset/BLOCK_SIZE)
@@ -93,20 +93,20 @@ func (p *Peer) NewStoredPiece(index, length uint32, hash []byte) *StoredPiece {
 	p.pieceMap[index] = sp
 	if p.completeWg != nil {
 		p.completeWg.Add(1)
+	} else {
+		p.Log("warning: Peer has no WaitGroup set, thus there is no way to know when the piece is downloaded")
 	}
 
-	go sp.Download(p)
+	sp.Download(p)
 	return sp
 }
 
 func (sp *StoredPiece) Download(p *Peer) {
 	for _, block := range sp.Blocks {
-		go func() {
-			err := block.makeRequest(p, sp.Index)
-			if err != nil {
-				fmt.Printf("error making request for block: %v\n", err)
-			}
-		}()
+		err := block.makeRequest(p, sp.Index)
+		if err != nil {
+			fmt.Printf("error making request for block: %v\n", err)
+		}
 	}
 }
 
@@ -149,7 +149,7 @@ func (sp *StoredPiece) GetData() []byte {
 func (sp *StoredPiece) VerifyHash() error {
 	hash, err := utils.SHA1Hash(sp.GetData())
 	if err != nil {
-		return fmt.Errorf("error hashing piece data: %v", err)
+		return fmt.Errorf("error hashing piece data: %w", err)
 	}
 
 	if !bytes.Equal(hash, sp.Hash) {

@@ -2,7 +2,9 @@ package types
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -25,11 +27,11 @@ type Peer struct {
 func NewPeerFromAddr(addr string) (*Peer, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid address format: %v", err)
+		return nil, fmt.Errorf("invalid address format: %w", err)
 	}
 	portInt, err := strconv.Atoi(port)
 	if err != nil {
-		return nil, fmt.Errorf("invalid port number: %v", err)
+		return nil, fmt.Errorf("invalid port number: %w", err)
 	}
 
 	// Create a new connection to the peer
@@ -50,6 +52,9 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 	}, nil
 }
 
+// SetWg sets the WaitGroup for the Peer. This wait group is used to
+// synchronize the completion of piece downloads. It is expected that the
+// wait group is set before any pieces are downloaded/registered with the peer.
 func (p *Peer) SetWg(wg *sync.WaitGroup) {
 	p.completeWg = wg
 }
@@ -65,7 +70,7 @@ func (p *Peer) SendMessage(messageBytes []byte) error {
 	data = append(data, messageBytes...)
 	_, err := p.conn.Write(data)
 	if err != nil {
-		return fmt.Errorf("error sending message: %v", err)
+		return fmt.Errorf("error sending message: %w", err)
 	}
 
 	return nil
@@ -77,9 +82,10 @@ func (p *Peer) RecieveMessage() ([]byte, error) {
 	lengthPrefix := make([]byte, 4)
 	_, err := p.conn.Read(lengthPrefix)
 	if err != nil {
-		return nil, fmt.Errorf("error reading message length: %v", err)
+		return nil, fmt.Errorf("error reading message length: %w", err)
 	}
 	length := binary.BigEndian.Uint32(lengthPrefix)
+	p.Log("Recieved message length: %d (%q)", length, lengthPrefix)
 
 	// Keep-alive message, so recursively call itself
 	if length == 0 {
@@ -87,10 +93,14 @@ func (p *Peer) RecieveMessage() ([]byte, error) {
 	}
 
 	message := make([]byte, length)
-	_, err = p.conn.Read(message)
+	n, err := p.conn.Read(message)
 	if err != nil {
-		return nil, fmt.Errorf("error reading message body: %v", err)
+		return nil, fmt.Errorf("error reading message body: %w", err)
 	}
+	if n != int(length) {
+		return nil, fmt.Errorf("expected to read %d bytes, but got %d", length, n)
+	}
+	p.Log("Recieved message bytes: %q", message[:min(n, 20)])
 
 	return message, nil
 }
@@ -108,14 +118,13 @@ func (p *Peer) PrepareToGetPieceData(s *Server, infoHash []byte) error {
 
 	err = p.SendInterested()
 	if err != nil {
-		return fmt.Errorf("error while sending interested message: %v", err)
+		return fmt.Errorf("error while sending interested message: %w", err)
 	}
 
 	return nil
 }
 
-// CloseConnection closes the TCP connection to the peer.
-func (p *Peer) CloseConnection() error {
+func (p *Peer) Shutdown() error {
 	err := p.conn.Close()
 	if err != nil {
 		return err
@@ -139,13 +148,13 @@ func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) 
 	p.Log("Initializing handshake")
 	_, err := p.conn.Write(handshake.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("error sending handshake: %v", err)
+		return nil, fmt.Errorf("error sending handshake: %w", err)
 	}
 
 	response := make([]byte, 68) // Handshake response size
 	_, err = p.conn.Read(response)
 	if err != nil {
-		return nil, fmt.Errorf("error reading handshake response: %v", err)
+		return nil, fmt.Errorf("error reading handshake response: %w", err)
 	}
 	recievedHandshake := NewHandshakeFromBytes(response)
 	p.Log("Handshaking completed")
@@ -160,13 +169,13 @@ func (p *Peer) SendInterested() error {
 	interested := []byte{INTERESTED_MESSAGE_ID}
 	err := p.SendMessage(interested)
 	if err != nil {
-		return fmt.Errorf("error sending interested message: %v", err)
+		return fmt.Errorf("error sending interested message: %w", err)
 	}
 	p.Log("Sent interested message")
 
 	err = p.blockTillUnchokeMessage()
 	if err != nil {
-		return fmt.Errorf("error while wating for unchoke message: %v", err)
+		return fmt.Errorf("error while wating for unchoke message: %w", err)
 	}
 	return nil
 }
@@ -177,7 +186,7 @@ func (p *Peer) blockTillBitFieldMessage() error {
 	for {
 		msg, err := p.RecieveMessage()
 		if err != nil {
-			return fmt.Errorf("error receiving message: %v", err)
+			return fmt.Errorf("error receiving message: %w", err)
 		}
 
 		if msg[0] == BITFIELD_MESSAGE_ID {
@@ -197,7 +206,7 @@ func (p *Peer) blockTillUnchokeMessage() error {
 	for {
 		msg, err := p.RecieveMessage()
 		if err != nil {
-			return fmt.Errorf("error receiving message: %v", err)
+			return fmt.Errorf("error receiving message: %w", err)
 		}
 
 		if msg[0] == UNCHOKE_MESSAGE_ID {
@@ -213,8 +222,18 @@ func (p *Peer) blockTillUnchokeMessage() error {
 // When a piece is downloaded completely, it calls the provided callback function.
 func (p *Peer) RegisterPieceMessageHandler() {
 	for {
+		// Check if the connection is closed
+		if p.conn == nil {
+			return
+		}
+
+		// Read the message from the peer
 		message, err := p.RecieveMessage()
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				p.Log("connection closed by peer")
+				return
+			}
 			p.Log("error receiving message: %v", err)
 			continue
 		}

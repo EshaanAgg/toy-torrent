@@ -41,13 +41,13 @@ func piecesFromString(pieces []byte) [][]byte {
 func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 	fileContent, err := os.ReadFile(torrentFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading file: %v", err)
+		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
 	// Decode the file content as a dictionary
 	bd, err := bencode.NewBencodeData(fileContent)
 	if err != nil {
-		return nil, fmt.Errorf("error decoding the file: %v", err)
+		return nil, fmt.Errorf("error decoding the file: %w", err)
 	}
 
 	// Access the nested elements directly as we can be assured
@@ -58,7 +58,7 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 	// Parse the info dictionary to get the info hash
 	infoHash, err := utils.SHA1Hash(infoDict.Encode())
 	if err != nil {
-		return nil, fmt.Errorf("error hashing the info dictionary: %v", err)
+		return nil, fmt.Errorf("error hashing the info dictionary: %w", err)
 	}
 
 	return &TorrentFileInfo{
