@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -45,15 +46,17 @@ func (m *MagnetURI) setValue(key, value string) error {
 	return nil
 }
 
-func NewMagnetURI(url string) (*MagnetURI, error) {
-	p := &parser{
-		s: url,
-		i: 0,
+func NewMagnetURI(s string) (*MagnetURI, error) {
+	s, err := url.PathUnescape(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unescape magnet link: %v", err)
 	}
 
-	s := p.get(7)
-	if s == nil || *s != "magnet:" {
-		return nil, fmt.Errorf("expected the URL to start with 'magnet:'")
+	p := &parser{s, 0}
+
+	dec := p.get(8)
+	if dec == nil || *dec != "magnet:?" {
+		return nil, fmt.Errorf("expected the URL to start with 'magnet:?'")
 	}
 
 	m := &MagnetURI{}
