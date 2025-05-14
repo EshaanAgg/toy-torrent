@@ -90,7 +90,7 @@ func HandleDownload(args []string) {
 	}
 
 	// Get peers and prepare them to send piece data
-	peers, err := getPeers(fileInfo, true)
+	peers, err := getPeersFromFile(fileInfo, true)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return

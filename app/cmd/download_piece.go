@@ -8,15 +8,6 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
-func getPieceLength(fileInfo *types.TorrentFileInfo, pieceIdx int) uint32 {
-	pieceLength := fileInfo.InfoDict.PieceLength
-	fileLength := fileInfo.InfoDict.Length
-	if (pieceIdx+1)*pieceLength > fileLength {
-		pieceLength = fileLength - (pieceIdx * pieceLength)
-	}
-	return uint32(pieceLength)
-}
-
 func HandleDownloadPiece(args []string) {
 	if len(args) != 4 || args[0] != "-o" {
 		fmt.Println("incorrect arguments passed. usage: go-torrent download_piece -o <output-file> <token-file> <piece-index>")
@@ -41,7 +32,7 @@ func HandleDownloadPiece(args []string) {
 	}
 
 	// Get the peers from the tracker
-	peers, err := getPeers(fileInfo, true)
+	peers, err := getPeersFromFile(fileInfo, true)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return

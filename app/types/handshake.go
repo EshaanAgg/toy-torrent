@@ -11,9 +11,15 @@ func (h *Handshake) Bytes() []byte {
 	b = append(b, 19) // Protocol length
 	b = append(b, "BitTorrent protocol"...)
 
-	// 8 bytes reserved for future use
-	for range 8 {
-		b = append(b, 0)
+	// To signal support for extensions, set the 20th bit
+	// from right to 1 (out of the 64 bits)
+	// 20 => i = 5 | mask = 1 << 4
+	for i := range 8 {
+		if i == 5 {
+			b = append(b, 1<<4)
+		} else {
+			b = append(b, 0)
+		}
 	}
 
 	b = append(b, h.InfoHash...)
