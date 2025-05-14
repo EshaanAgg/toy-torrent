@@ -102,6 +102,9 @@ func (p *Peer) DownloadPiece(index, length uint32, hash []byte) (*StoredPiece, e
 		return nil, fmt.Errorf("error getting complete piece: %w", err)
 	}
 
+	// Reset the assigned piece to nil so that the peer can download another piece
+	p.assignedPiece = nil
+
 	return sp, nil
 }
 

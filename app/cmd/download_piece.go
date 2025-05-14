@@ -74,7 +74,6 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 			continue
 		}
 
-		// Download was successful
 		break
 	}
 

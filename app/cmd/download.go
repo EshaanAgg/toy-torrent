@@ -1,10 +1,79 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"sync"
+	"time"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
+
+type pieceToDownload struct {
+	index  uint32
+	length uint32
+	hash   []byte
+}
+
+type pieceResult struct {
+	index uint32
+	data  []byte
+	err   error
+}
+
+// downloadPieces downloads all pieces from peers concurrently. It uses a
+// worker pool to limit the number of concurrent downloads and handles
+// failed downloads by requeuing them for retry.
+func downloadPieces(peers []*types.Peer, pieces []*pieceToDownload) [][]byte {
+	var wg sync.WaitGroup
+	numWorkers := len(peers)
+	pieceQueue := make(chan *pieceToDownload, len(pieces))
+	results := make(chan pieceResult, len(pieces))
+
+	// Feed the queue with all pieces
+	for _, piece := range pieces {
+		pieceQueue <- piece
+	}
+	close(pieceQueue)
+
+	// Worker function
+	worker := func(peer *types.Peer) {
+		defer wg.Done()
+		for piece := range pieceQueue {
+			sp, err := peer.DownloadPiece(piece.index, piece.length, piece.hash)
+			if err != nil {
+				fmt.Printf("error with piece %d: %v, retrying\n", piece.index, err)
+
+				// Requeue the piece
+				go func(p *pieceToDownload) {
+					time.Sleep(500 * time.Millisecond) // Short delay to avoid busy-loop
+					pieceQueue <- p
+				}(piece)
+
+				continue
+			}
+			results <- pieceResult{index: piece.index, data: sp.GetData()}
+		}
+	}
+
+	// Start workers
+	wg.Add(numWorkers)
+	for _, peer := range peers {
+		go worker(peer)
+	}
+
+	wg.Wait()
+	close(results)
+
+	// Collect results
+	filePieces := make([][]byte, len(pieces))
+	for res := range results {
+		filePieces[res.index] = res.data
+	}
+
+	return filePieces
+}
 
 func HandleDownload(args []string, s *types.Server) {
 	if len(args) != 3 || args[0] != "-o" {
@@ -12,7 +81,7 @@ func HandleDownload(args []string, s *types.Server) {
 		return
 	}
 
-	// Parse the torrent file and the output file
+	// Create the torrent file info
 	torrentFile := args[2]
 	fileInfo, err := types.NewTorrentFileInfo(torrentFile)
 	if err != nil {
@@ -20,6 +89,7 @@ func HandleDownload(args []string, s *types.Server) {
 		return
 	}
 
+	// Get peers and prepare them to send piece data
 	peers, err := getPeers(fileInfo, s, true)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
@@ -29,49 +99,35 @@ func HandleDownload(args []string, s *types.Server) {
 		fmt.Println("no peers found")
 		return
 	}
+	for _, peer := range peers {
+		err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
+		if err != nil {
+			fmt.Printf("error preparing peer: %v\n", err)
+			return
+		}
+	}
 
-	// pieceCnt := len(fileInfo.InfoDict.Pieces)
-	// fmt.Printf("pieces count: %d, peers count: %d\n", pieceCnt, len(peers))
-	// wg := &sync.WaitGroup{}
+	// Create the pieces
+	var pieces []*pieceToDownload
+	for i := range len(fileInfo.InfoDict.Pieces) {
+		length := getPieceLength(fileInfo, i)
+		pieces = append(pieces, &pieceToDownload{
+			index:  uint32(i),
+			length: length,
+			hash:   fileInfo.InfoDict.Pieces[i],
+		})
+	}
 
-	// // Assign each of the piece to a peer in round robin fashion
-	// for idx, pieceHash := range fileInfo.InfoDict.Pieces {
-	// 	peerIdx := idx % len(peers)
-	// 	peer := peers[peerIdx]
+	fileData := downloadPieces(peers, pieces)
 
-	// 	// If this is the first time accessing the peer, prepare it to get piece data
-	// 	if peerIdx < len(peers) {
-	// 		err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
-	// 		if err != nil {
-	// 			println("error preparing to get piece data: ", err)
-	// 			return
-	// 		}
-	// 		peer.SetWg(wg)
-	// 		go peer.RegisterPieceMessageHandler()
-	// 	}
+	// Stitch all the pieces together
+	final := bytes.Join(fileData, []byte{})
+	outputFile := args[1]
+	err = os.WriteFile(outputFile, final, 0644)
+	if err != nil {
+		fmt.Printf("error writing final file: %v\n", err)
+		return
+	}
 
-	// 	// Create a new piece and assign it to the peer
-	// 	pieceLen := getPieceLength(fileInfo, idx)
-	// 	go peer.NewStoredPiece(uint32(idx), pieceLen, pieceHash)
-	// }
-
-	// wg.Wait()
-
-	// // All the pieces have been downloaded, contact them to get the file
-	// fileData := make([]byte, 0)
-	// for idx := range pieceCnt {
-	// 	peerIdx := idx % len(peers)
-	// 	d, err := peers[peerIdx].GetPieceData(uint32(idx))
-	// 	if err != nil {
-	// 		fmt.Printf("error getting piece data: %v\n", err)
-	// 		return
-	// 	}
-	// 	fileData = append(fileData, d...)
-	// }
-
-	// // Write the file data to the output file
-	// err = utils.MakeFileWithData(args[1], fileData)
-	// if err != nil {
-	// 	fmt.Printf("error writing data to file: %v\n", err)
-	// }
+	fmt.Printf("Downloaded file saved to '%s'\n", outputFile)
 }
