@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
-	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
 func HandleDownload(args []string, s *types.Server) {
@@ -32,49 +30,48 @@ func HandleDownload(args []string, s *types.Server) {
 		return
 	}
 
-	piecesCnt := len(fileInfo.InfoDict.Pieces)
-	fmt.Printf("pieces count: %d, peers count: %d\n", piecesCnt, len(peers))
-	wg := &sync.WaitGroup{}
+	// pieceCnt := len(fileInfo.InfoDict.Pieces)
+	// fmt.Printf("pieces count: %d, peers count: %d\n", pieceCnt, len(peers))
+	// wg := &sync.WaitGroup{}
 
-	// Assign each of the piece to a peer in round robin fashion
-	for idx := range piecesCnt {
-		peerIdx := idx % len(peers)
-		peer := peers[peerIdx]
+	// // Assign each of the piece to a peer in round robin fashion
+	// for idx, pieceHash := range fileInfo.InfoDict.Pieces {
+	// 	peerIdx := idx % len(peers)
+	// 	peer := peers[peerIdx]
 
-		// If this is the first time accessing the peer, prepare it to get piece data
-		if peerIdx < len(peers) {
-			err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
-			if err != nil {
-				println("error preparing to get piece data: ", err)
-				return
-			}
-			peer.SetWg(wg)
-			go peer.RegisterPieceMessageHandler()
-		}
+	// 	// If this is the first time accessing the peer, prepare it to get piece data
+	// 	if peerIdx < len(peers) {
+	// 		err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
+	// 		if err != nil {
+	// 			println("error preparing to get piece data: ", err)
+	// 			return
+	// 		}
+	// 		peer.SetWg(wg)
+	// 		go peer.RegisterPieceMessageHandler()
+	// 	}
 
-		// Create a new piece and assign it to the peer
-		pieceLen := getPieceLength(fileInfo, idx)
-		pieceHash := fileInfo.InfoDict.Pieces[idx]
-		peer.NewStoredPiece(uint32(idx), pieceLen, pieceHash)
-	}
+	// 	// Create a new piece and assign it to the peer
+	// 	pieceLen := getPieceLength(fileInfo, idx)
+	// 	go peer.NewStoredPiece(uint32(idx), pieceLen, pieceHash)
+	// }
 
-	wg.Wait()
+	// wg.Wait()
 
-	// All the pieces have been downloaded, contact them to get the file
-	fileData := make([]byte, 0)
-	for idx := range piecesCnt {
-		peerIdx := idx % len(peers)
-		d, err := peers[peerIdx].GetPieceData(uint32(idx))
-		if err != nil {
-			fmt.Printf("error getting piece data: %v\n", err)
-			return
-		}
-		fileData = append(fileData, d...)
-	}
+	// // All the pieces have been downloaded, contact them to get the file
+	// fileData := make([]byte, 0)
+	// for idx := range pieceCnt {
+	// 	peerIdx := idx % len(peers)
+	// 	d, err := peers[peerIdx].GetPieceData(uint32(idx))
+	// 	if err != nil {
+	// 		fmt.Printf("error getting piece data: %v\n", err)
+	// 		return
+	// 	}
+	// 	fileData = append(fileData, d...)
+	// }
 
-	// Write the file data to the output file
-	err = utils.MakeFileWithData(args[1], fileData)
-	if err != nil {
-		fmt.Printf("error writing data to file: %v\n", err)
-	}
+	// // Write the file data to the output file
+	// err = utils.MakeFileWithData(args[1], fileData)
+	// if err != nil {
+	// 	fmt.Printf("error writing data to file: %v\n", err)
+	// }
 }

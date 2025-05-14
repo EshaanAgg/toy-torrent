@@ -8,7 +8,6 @@ import (
 	"log"
 	"net"
 	"strconv"
-	"sync"
 )
 
 // Peer represents a remote peer in the network.
@@ -18,9 +17,9 @@ type Peer struct {
 
 	conn                net.Conn
 	logger              *log.Logger
-	pieceMap            map[uint32]*StoredPiece // Map of piece index to StoredPiece
-	completeWg          *sync.WaitGroup
 	shutMessageListener chan bool
+
+	assignedPiece *StoredPiece
 }
 
 // NewPeerFromAddr initializes a Peer and establishes a TCP connection to it.
@@ -40,7 +39,7 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 		return nil, fmt.Errorf("error connecting to address %s: %w", addr, err)
 	}
 
-	logger := log.New(conn, fmt.Sprintf("[%s:%d] ", host, portInt), 0)
+	logger := log.New(conn, fmt.Sprintf("[Peer %d] ", getPeerID(addr)), 0)
 	logger.SetOutput(log.Writer())
 
 	return &Peer{
@@ -49,15 +48,7 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 		conn:                conn,
 		logger:              logger,
 		shutMessageListener: make(chan bool),
-		pieceMap:            make(map[uint32]*StoredPiece),
 	}, nil
-}
-
-// SetWg sets the WaitGroup for the Peer. This wait group is used to
-// synchronize the completion of piece downloads. It is expected that the
-// wait group is set before any pieces are downloaded/registered with the peer.
-func (p *Peer) SetWg(wg *sync.WaitGroup) {
-	p.completeWg = wg
 }
 
 // SendMessage sends a message to the peer with a 4-byte length prefix.
@@ -207,63 +198,45 @@ func (p *Peer) blockTillUnchokeMessage() error {
 	}
 }
 
-// RegisterPieceMessageHandler continuously listens for incoming messages and processes them.
-// When a piece is downloaded completely, it calls the provided callback function.
-func (p *Peer) RegisterPieceMessageHandler() {
+// getCompletePiece continuously listens for incoming messages and processes them.
+// It returns when the piece download is complete or an error occurs.
+func (p *Peer) getCompletePiece() error {
+	if p.assignedPiece == nil {
+		return fmt.Errorf("no piece assigned to peer")
+	}
+	piece := p.assignedPiece
+
 	for {
 		message, err := p.RecieveMessage()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				p.Log("connection closed by peer")
-				return
+				return fmt.Errorf("peer closed connection: %w", err)
 			}
-			p.Log("error receiving message: %v", err)
-			continue
+			return fmt.Errorf("error receiving message: %w", err)
 		}
 
 		if message[0] != PIECE_MESSAGE_ID {
-			p.Log("recieved message with ID = %d, expected PIECE_MESSAGE_ID = %d", message[0], PIECE_MESSAGE_ID)
-			continue
+			return fmt.Errorf("recieved message with ID = %d, expected PIECE_MESSAGE_ID = %d", message[0], PIECE_MESSAGE_ID)
 		}
 
 		m, err := NewPieceMessage(message)
 		if err != nil {
-			p.Log("error creating PieceMessage: %v", err)
-			continue
-		}
-		p.Log("recieved piece message for piece_idx = %d, begin_idx = %d, block_len = %d", m.PieceIndex, m.Begin/BLOCK_SIZE, len(m.Block))
-
-		piece, ok := p.pieceMap[m.PieceIndex]
-		if !ok {
-			p.Log("piece with index %d not found in piece map", m.PieceIndex)
-			continue
+			return fmt.Errorf("error creating PieceMessage: %w", err)
 		}
 
 		err = piece.HandlePieceMessage(m)
 		if err != nil {
-			p.Log("error handling piece message: %v", err)
-			continue
+			return fmt.Errorf("error handling piece message: %w", err)
 		}
 
 		if piece.IsComplete() {
 			p.Log("piece %d completed", piece.Index)
 			err := piece.VerifyHash()
 			if err != nil {
-				p.Log("error verifying piece hash: %v", err)
+				return fmt.Errorf("error verifying piece hash: %w", err)
 			}
-
-			if p.completeWg != nil {
-				p.completeWg.Done()
-			}
+			p.Log("piece %d hash verified", piece.Index)
+			return nil
 		}
 	}
-}
-
-func (p *Peer) GetPieceData(index uint32) ([]byte, error) {
-	piece, ok := p.pieceMap[index]
-	if !ok {
-		return nil, fmt.Errorf("piece with index %d not found in piece map", index)
-	}
-
-	return piece.GetData(), nil
 }

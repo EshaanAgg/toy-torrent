@@ -63,7 +63,11 @@ type StoredPiece struct {
 	peerConn net.Conn
 }
 
-func (p *Peer) NewStoredPiece(index, length uint32, hash []byte) *StoredPiece {
+func (p *Peer) DownloadPiece(index, length uint32, hash []byte) (*StoredPiece, error) {
+	if p.assignedPiece != nil {
+		return nil, fmt.Errorf("peer already has an assigned piece")
+	}
+
 	sp := &StoredPiece{
 		Index:  index,
 		Length: length,
@@ -89,18 +93,19 @@ func (p *Peer) NewStoredPiece(index, length uint32, hash []byte) *StoredPiece {
 	}
 
 	// Register the piece with the peer
-	p.pieceMap[index] = sp
-	if p.completeWg != nil {
-		p.completeWg.Add(1)
-	} else {
-		p.Log("warning: Peer has no waitgroup set, thus there is no way to know when the piece is downloaded")
+	p.assignedPiece = sp
+	p.Log("assigned piece %d", sp.Index)
+
+	sp.makeInitialDownloadRequests(p)
+	err := p.getCompletePiece()
+	if err != nil {
+		return nil, fmt.Errorf("error getting complete piece: %w", err)
 	}
 
-	sp.Download(p)
-	return sp
+	return sp, nil
 }
 
-func (sp *StoredPiece) Download(p *Peer) {
+func (sp *StoredPiece) makeInitialDownloadRequests(p *Peer) {
 	for _, block := range sp.Blocks {
 		err := block.makeRequest(p, sp.Index)
 		if err != nil {

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"strconv"
-	"sync"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
 	"github.com/EshaanAgg/toy-bittorrent/app/utils"
@@ -61,17 +60,24 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 		fmt.Printf("error preparing to get piece data: %v\n", err)
 		return
 	}
-	wg := sync.WaitGroup{}
-	peer.SetWg(&wg)
 
 	// Register the piece with the peer
 	pieceLen := getPieceLength(fileInfo, pieceIdx)
 	pieceHash := fileInfo.InfoDict.Pieces[pieceIdx]
-	sp := peer.NewStoredPiece(uint32(pieceIdx), pieceLen, pieceHash)
 
-	go peer.RegisterPieceMessageHandler()
+	var sp *types.StoredPiece
 
-	wg.Wait() // Wait for all the pieces to be downloaded
+	for {
+		sp, err = peer.DownloadPiece(uint32(pieceIdx), pieceLen, pieceHash)
+		if err != nil {
+			fmt.Printf("error downloading piece: %v\n", err)
+			continue
+		}
+
+		// Download was successful
+		break
+	}
+
 	err = utils.MakeFileWithData(args[1], sp.GetData())
 	if err != nil {
 		fmt.Printf("error writing data to file: %v\n", err)
