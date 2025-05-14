@@ -7,7 +7,7 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/utils"
 )
 
-func HandleHandshake(args []string, server *types.Server) {
+func HandleHandshake(args []string) {
 	if len(args) != 2 {
 		fmt.Println("incorrect arguments passed. usage: go-torrent handshake <torrent-file> <peer-host:port>")
 		return
@@ -26,7 +26,7 @@ func HandleHandshake(args []string, server *types.Server) {
 		return
 	}
 
-	handshake, err := peer.PerformHandshake(server, fileInfo.InfoHash)
+	handshake, err := peer.PerformHandshake(fileInfo.InfoHash)
 	if err != nil {
 		fmt.Printf("error performing handshake: %v\n", err)
 		return

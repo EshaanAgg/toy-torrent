@@ -5,10 +5,9 @@ import (
 	"os"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/cmd"
-	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
 
-type HandlerFn func(args []string, server *types.Server)
+type HandlerFn func(args []string)
 
 var handlers = map[string]HandlerFn{
 	"decode":         cmd.HandleDecode,
@@ -22,7 +21,6 @@ var handlers = map[string]HandlerFn{
 
 func main() {
 	args := os.Args[1:]
-	s := types.NewServer()
 
 	if len(args) == 0 {
 		fmt.Printf("no arguments provided")
@@ -34,5 +32,5 @@ func main() {
 		fmt.Printf("unknown command: %s\n", args[0])
 		return
 	}
-	handler(args[1:], s)
+	handler(args[1:])
 }

@@ -17,7 +17,7 @@ func getPieceLength(fileInfo *types.TorrentFileInfo, pieceIdx int) uint32 {
 	return uint32(pieceLength)
 }
 
-func HandleDownloadPiece(args []string, s *types.Server) {
+func HandleDownloadPiece(args []string) {
 	if len(args) != 4 || args[0] != "-o" {
 		fmt.Println("incorrect arguments passed. usage: go-torrent download_piece -o <output-file> <token-file> <piece-index>")
 		return
@@ -41,7 +41,7 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 	}
 
 	// Get the peers from the tracker
-	peers, err := getPeers(fileInfo, s, true)
+	peers, err := getPeers(fileInfo, true)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return
@@ -55,7 +55,7 @@ func HandleDownloadPiece(args []string, s *types.Server) {
 	// We can do this as all the peers have all the pieces.
 	// TODO: Fix this assumption
 	peer := peers[0]
-	err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
+	err = peer.PrepareToGetPieceData(fileInfo.InfoHash)
 	if err != nil {
 		fmt.Printf("error preparing to get piece data: %v\n", err)
 		return

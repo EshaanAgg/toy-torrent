@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	"github.com/EshaanAgg/toy-bittorrent/app/bencode"
-	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
 
-func HandleDecode(args []string, _s *types.Server) {
+func HandleDecode(args []string) {
 	if len(args) == 0 {
 		fmt.Println("no data passed to decode. usage: kafka decode <bytes-to-decode>")
 		return

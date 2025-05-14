@@ -6,7 +6,7 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
 
-func HandleInfo(args []string, _s *types.Server) {
+func HandleInfo(args []string) {
 	// Validate the number of arguments passed to the info command
 	if len(args) == 0 {
 		fmt.Println("no data passed to info. usage: go-torrent info <path-to-file>")

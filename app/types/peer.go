@@ -99,8 +99,8 @@ func (p *Peer) RecieveMessage() ([]byte, error) {
 	return message, nil
 }
 
-func (p *Peer) PrepareToGetPieceData(s *Server, infoHash []byte) error {
-	_, err := p.PerformHandshake(s, infoHash)
+func (p *Peer) PrepareToGetPieceData(infoHash []byte) error {
+	_, err := p.PerformHandshake(infoHash)
 	if err != nil {
 		return fmt.Errorf("error performing handshake: %w", err)
 	}
@@ -125,9 +125,9 @@ func (p *Peer) Log(s string, vals ...any) {
 
 // PerformHandshake sends a handshake to the peer and waits for a response.
 // Returns the received handshake or an error.
-func (p *Peer) PerformHandshake(s *Server, infoHash []byte) (*Handshake, error) {
+func (p *Peer) PerformHandshake(infoHash []byte) (*Handshake, error) {
 	handshake := Handshake{
-		PeerID:   s.PeerID,
+		PeerID:   SERVER_PEER_ID,
 		InfoHash: infoHash,
 	}
 

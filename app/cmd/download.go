@@ -75,7 +75,7 @@ func downloadPieces(peers []*types.Peer, pieces []*pieceToDownload) [][]byte {
 	return filePieces
 }
 
-func HandleDownload(args []string, s *types.Server) {
+func HandleDownload(args []string) {
 	if len(args) != 3 || args[0] != "-o" {
 		println("incorrect arguments passed. usage: go-torrent download_file -o <output-file> <token-file>")
 		return
@@ -90,7 +90,7 @@ func HandleDownload(args []string, s *types.Server) {
 	}
 
 	// Get peers and prepare them to send piece data
-	peers, err := getPeers(fileInfo, s, true)
+	peers, err := getPeers(fileInfo, true)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return
@@ -100,7 +100,7 @@ func HandleDownload(args []string, s *types.Server) {
 		return
 	}
 	for _, peer := range peers {
-		err = peer.PrepareToGetPieceData(s, fileInfo.InfoHash)
+		err = peer.PrepareToGetPieceData(fileInfo.InfoHash)
 		if err != nil {
 			fmt.Printf("error preparing peer: %v\n", err)
 			return

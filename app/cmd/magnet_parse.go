@@ -6,7 +6,7 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
 
-func HandleMagnetParse(args []string, s *types.Server) {
+func HandleMagnetParse(args []string) {
 	if len(args) != 1 {
 		fmt.Println("incorrect arguments passed. usage: go-torrent magnet_parse <magnet-link>")
 		return

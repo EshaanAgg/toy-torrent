@@ -1,5 +1,7 @@
 package types
 
+import "github.com/EshaanAgg/toy-bittorrent/app/utils"
+
 const BLOCK_SIZE uint32 = 16384 // 16 KB
 
 const UNCHOKE_MESSAGE_ID = 1
@@ -7,6 +9,8 @@ const INTERESTED_MESSAGE_ID = 2
 const BITFIELD_MESSAGE_ID = 5
 const REQUEST_MESSAGE_ID = 6
 const PIECE_MESSAGE_ID = 7
+
+var SERVER_PEER_ID = utils.GetRandomPeerID()
 
 var peerAddressToIDMap = make(map[string]uint32)
 
