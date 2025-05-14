@@ -1,8 +1,16 @@
 package types
 
+import (
+	"encoding/binary"
+	"fmt"
+
+	"github.com/EshaanAgg/toy-bittorrent/app/bencode"
+)
+
 type Handshake struct {
-	PeerID   []byte
-	InfoHash []byte
+	SupportsExtensions bool
+	PeerID             []byte
+	InfoHash           []byte
 }
 
 func (h *Handshake) Bytes() []byte {
@@ -15,10 +23,9 @@ func (h *Handshake) Bytes() []byte {
 	// from right to 1 (out of the 64 bits)
 	// 20 => i = 5 | mask = 1 << 4
 	for i := range 8 {
-		if i == 5 {
-			b = append(b, 1<<4)
-		} else {
-			b = append(b, 0)
+		b = append(b, 0)
+		if i == 5 && h.SupportsExtensions {
+			b[i] |= 1 << 4
 		}
 	}
 
@@ -33,9 +40,107 @@ func NewHandshakeFromBytes(data []byte) *Handshake {
 	}
 
 	h := &Handshake{
-		InfoHash: data[28:48],
-		PeerID:   data[48:68],
+		SupportsExtensions: (data[25] & (1 << 4)) != 0,
+		InfoHash:           data[28:48],
+		PeerID:             data[48:68],
 	}
 
 	return h
+}
+
+type ExtensionHandshake struct {
+	ExtensionMap map[string]int
+}
+
+func NewExtensionHandshake() *ExtensionHandshake {
+	ext := &ExtensionHandshake{
+		ExtensionMap: make(map[string]int),
+	}
+	// Add the "ut_metadata" extension
+	ext.ExtensionMap["ut_metadata"] = UT_METADATA_EXTENSION_ID
+	return ext
+}
+
+func (e *ExtensionHandshake) getDictionaryBytes() []byte {
+	// Create a dictionary with the extension map
+	dict := bencode.NewBencodeDictionary()
+	for k, v := range e.ExtensionMap {
+		val := &bencode.BencodeData{
+			Type: bencode.IntegerType,
+			Value: &bencode.BencodeInteger{
+				Value: v,
+			},
+		}
+
+		dict.Add(k, val)
+	}
+
+	// Base dictionary contains the extension map
+	// under the key "m"
+	baseDict := bencode.NewBencodeDictionary()
+	baseDict.Add("m", &bencode.BencodeData{
+		Type:  bencode.DictionaryType,
+		Value: dict,
+	})
+
+	return baseDict.Encode()
+}
+
+func (e *ExtensionHandshake) Bytes() []byte {
+	// Get the body bytes
+	body := make([]byte, 0)
+	body = append(body, EXTENSION_HANDSHAKE_PAYLOAD_MESSAGE_ID)
+	body = append(body, e.getDictionaryBytes()...)
+
+	// Create the message
+	msg := make([]byte, 0)
+	l := len(body) + 1 // +1 for the message ID
+	msg = binary.BigEndian.AppendUint32(msg, uint32(l))
+	msg = append(msg, EXTENSION_HANDSHAKE_HEADER_MESSAGE_ID)
+	msg = append(msg, body...)
+
+	return msg
+}
+
+func NewExtensionHandshakeFromBytes(data []byte) (*ExtensionHandshake, error) {
+	if len(data) < 2 {
+		return nil, fmt.Errorf("data too short for extension handshake: %d", len(data))
+	}
+
+	// Parse the message IDs from the header and payload
+	if data[0] != EXTENSION_HANDSHAKE_HEADER_MESSAGE_ID {
+		return nil, fmt.Errorf("invalid message ID: expected %d, got %d", EXTENSION_HANDSHAKE_HEADER_MESSAGE_ID, data[0])
+	}
+	if data[1] != EXTENSION_HANDSHAKE_PAYLOAD_MESSAGE_ID {
+		return nil, fmt.Errorf("invalid message ID: expected %d, got %d", EXTENSION_HANDSHAKE_PAYLOAD_MESSAGE_ID, data[0])
+	}
+	data = data[2:]
+
+	// Make a new extension handshake object to store the parsed data
+	handshake := &ExtensionHandshake{
+		ExtensionMap: make(map[string]int),
+	}
+
+	// Parse the dictionary
+	dict, err := bencode.NewBencodeData(data)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing dictionary: %w", err)
+	}
+	if dict.Type != bencode.DictionaryType {
+		return nil, fmt.Errorf("expected dictionary type, got %s", dict.Type)
+	}
+	if extensionMap, ok := dict.GetDictionary().Map["m"]; ok {
+		if extensionMap.Type != bencode.DictionaryType {
+			return nil, fmt.Errorf("expected dictionary type for extensions, got %s", extensionMap.Type)
+		}
+
+		for k, v := range extensionMap.GetDictionary().Map {
+			if v.Type != bencode.IntegerType {
+				return nil, fmt.Errorf("expected integer type for extension value, got %s", v.Type)
+			}
+			handshake.ExtensionMap[k] = v.GetInteger().Value
+		}
+	}
+
+	return handshake, nil
 }

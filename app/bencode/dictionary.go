@@ -11,6 +11,18 @@ type BencodeDictionary struct {
 	Length int
 }
 
+func NewBencodeDictionary() *BencodeDictionary {
+	return &BencodeDictionary{
+		Map:    make(map[string]*BencodeData),
+		Length: 0,
+	}
+}
+
+func (d *BencodeDictionary) Add(key string, value *BencodeData) {
+	d.Map[key] = value
+	d.Length++
+}
+
 // Returns the sorted keys of the dictionary. This is used to ensure that the
 // dictionary is always encoded in a consistent order, which is important for
 // hashing and comparison purposes.

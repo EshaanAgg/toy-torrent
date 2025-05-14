@@ -36,5 +36,23 @@ func HandleMagnetHandshake(args []string) {
 		println("error performing handshake:", err)
 		return
 	}
+
 	fmt.Printf("Peer ID: %x\n", handshake.PeerID)
+
+	// TODO: Send a bitfield message to the peer
+	err = peer.BlockTillBitFieldMessage()
+	if err != nil {
+		fmt.Printf("error waiting for bitfield message: %v\n", err)
+		return
+	}
+
+	if handshake.SupportsExtensions {
+		extHandshake, err := peer.PerformExtensionHandshake()
+		if err != nil {
+			fmt.Printf("error performing extension handshake: %v\n", err)
+		}
+		if mtExtensionId, ok := extHandshake.ExtensionMap["ut_metadata"]; ok {
+			fmt.Printf("Peer Metadata Extension ID: %d\n", mtExtensionId)
+		}
+	}
 }
