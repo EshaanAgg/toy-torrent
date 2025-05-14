@@ -37,7 +37,7 @@ func NewBencodeData(s []byte) (*BencodeData, error) {
 	return v, nil
 }
 
-func NewEncodeString(s string) *BencodeData {
+func NewDataString(s string) *BencodeData {
 	return &BencodeData{
 		Type: StringType,
 		Value: &BencodeString{
@@ -47,7 +47,7 @@ func NewEncodeString(s string) *BencodeData {
 	}
 }
 
-func NewEncodeInteger(i int) *BencodeData {
+func NewDataInteger(i int) *BencodeData {
 	return &BencodeData{
 		Type: IntegerType,
 		Value: &BencodeInteger{
@@ -56,7 +56,7 @@ func NewEncodeInteger(i int) *BencodeData {
 	}
 }
 
-func NewEncodeList(l []*BencodeData) *BencodeData {
+func NewDataList(l []*BencodeData) *BencodeData {
 	return &BencodeData{
 		Type: ListType,
 		Value: &BencodeList{
@@ -66,7 +66,7 @@ func NewEncodeList(l []*BencodeData) *BencodeData {
 	}
 }
 
-func NewEncodeDictionary(m map[string]*BencodeData) *BencodeData {
+func NewDataDictionary(m map[string]*BencodeData) *BencodeData {
 	return &BencodeData{
 		Type: DictionaryType,
 		Value: &BencodeDictionary{

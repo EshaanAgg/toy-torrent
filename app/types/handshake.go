@@ -63,27 +63,21 @@ func NewExtensionHandshake() *ExtensionHandshake {
 
 func (e *ExtensionHandshake) getDictionaryBytes() []byte {
 	// Create a dictionary with the extension map
-	dict := bencode.NewBencodeDictionary()
+	dict := make(map[string]*bencode.BencodeData)
 	for k, v := range e.ExtensionMap {
-		val := &bencode.BencodeData{
-			Type: bencode.IntegerType,
-			Value: &bencode.BencodeInteger{
-				Value: v,
-			},
-		}
-
-		dict.Add(k, val)
+		dict[k] = bencode.NewDataInteger(v)
 	}
 
 	// Base dictionary contains the extension map
 	// under the key "m"
-	baseDict := bencode.NewBencodeDictionary()
-	baseDict.Add("m", &bencode.BencodeData{
-		Type:  bencode.DictionaryType,
-		Value: dict,
-	})
+	baseDict := make(map[string]*bencode.BencodeData)
+	baseDict["m"] = bencode.NewDataDictionary(dict)
 
-	return baseDict.Encode()
+	bd := bencode.BencodeDictionary{
+		Map:    baseDict,
+		Length: len(baseDict),
+	}
+	return bd.Encode()
 }
 
 func (e *ExtensionHandshake) Bytes() []byte {
