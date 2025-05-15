@@ -34,6 +34,9 @@ func (p *Peer) PrepareToGetPieceData_Magnet(m *MagnetURI, logIDs bool) (*Torrent
 	if err != nil {
 		return nil, fmt.Errorf("error performing handshake: %w", err)
 	}
+	if logIDs {
+		fmt.Printf("Peer ID: %x\n", handshake.PeerID)
+	}
 
 	// TODO: Send a bitfield message to the peer
 	err = p.BlockTillBitFieldMessage()
@@ -65,7 +68,6 @@ func (p *Peer) PrepareToGetPieceData_Magnet(m *MagnetURI, logIDs bool) (*Torrent
 		return nil, fmt.Errorf("error while sending interested message: %w", err)
 	}
 
-	p.Log("completed initialization. ready to download pieces")
 	return infoFile, nil
 }
 
