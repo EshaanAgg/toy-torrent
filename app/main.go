@@ -18,6 +18,7 @@ var handlers = map[string]HandlerFn{
 	"download":         cmd.HandleDownload,
 	"magnet_parse":     cmd.HandleMagnetParse,
 	"magnet_handshake": cmd.HandleMagnetHandshake,
+	"magnet_info":      cmd.HandleMagnetInfo,
 }
 
 func main() {

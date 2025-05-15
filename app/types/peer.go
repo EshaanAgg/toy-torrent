@@ -14,10 +14,10 @@ type Peer struct {
 	IP   string
 	Port int
 
-	conn                net.Conn
-	logger              *log.Logger
-	shutMessageListener chan bool
+	ExtensionMessageID int // Would be -1 if the peer doesn't support extension messages
 
+	conn          net.Conn
+	logger        *log.Logger
 	assignedPiece *StoredPiece
 }
 
@@ -42,11 +42,12 @@ func NewPeerFromAddr(addr string) (*Peer, error) {
 	logger.SetOutput(log.Writer())
 
 	return &Peer{
-		IP:                  host,
-		Port:                portInt,
-		conn:                conn,
-		logger:              logger,
-		shutMessageListener: make(chan bool),
+		IP:                 host,
+		Port:               portInt,
+		ExtensionMessageID: -1,
+
+		conn:   conn,
+		logger: logger,
 	}, nil
 }
 

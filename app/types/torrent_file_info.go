@@ -43,7 +43,6 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	// Decode the file content as a dictionary
 	bd, err := bencode.NewBencodeData(fileContent)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding the file: %w", err)
@@ -63,6 +62,19 @@ func NewTorrentFileInfo(torrentFilePath string) (*TorrentFileInfo, error) {
 	return &TorrentFileInfo{
 		TrackerURL: string(d.Map["announce"].GetString().Value),
 		InfoHash:   infoHash,
+		InfoDict: &InfoDict{
+			Length:      infoDict.Map["length"].GetInteger().Value,
+			Name:        string(infoDict.Map["name"].GetString().Value),
+			PieceLength: infoDict.Map["piece length"].GetInteger().Value,
+			Pieces:      piecesFromString(infoDict.Map["pieces"].GetString().Value),
+		},
+	}, nil
+}
+
+func NewTorrentFileInfoFromMagnet(magnet *MagnetURI, infoDict *bencode.BencodeDictionary) (*TorrentFileInfo, error) {
+	return &TorrentFileInfo{
+		TrackerURL: magnet.TrackerURL,
+		InfoHash:   magnet.InfoHash,
 		InfoDict: &InfoDict{
 			Length:      infoDict.Map["length"].GetInteger().Value,
 			Name:        string(infoDict.Map["name"].GetString().Value),

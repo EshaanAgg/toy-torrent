@@ -24,14 +24,5 @@ func HandleInfo(args []string) {
 		return
 	}
 
-	infoDict := fileInfo.InfoDict
-
-	fmt.Printf("Tracker URL: %s\n", fileInfo.TrackerURL)
-	fmt.Printf("Length: %d\n", infoDict.Length)
-	fmt.Printf("Info Hash: %s\n", fileInfo.GetHexInfoHash())
-	fmt.Printf("Piece Length: %d\n", infoDict.PieceLength)
-	fmt.Println("Piece Hashes:")
-	for _, p := range infoDict.Pieces {
-		fmt.Printf("%x\n", p)
-	}
+	logInfo(fileInfo)
 }

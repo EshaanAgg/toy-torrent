@@ -47,3 +47,16 @@ func getPeersFromFile(fileInfo *types.TorrentFileInfo, makeConnection bool) ([]*
 	}
 	return peers, nil
 }
+
+func logInfo(fileInfo *types.TorrentFileInfo) {
+	infoDict := fileInfo.InfoDict
+
+	fmt.Printf("Tracker URL: %s\n", fileInfo.TrackerURL)
+	fmt.Printf("Length: %d\n", infoDict.Length)
+	fmt.Printf("Info Hash: %s\n", fileInfo.GetHexInfoHash())
+	fmt.Printf("Piece Length: %d\n", infoDict.PieceLength)
+	fmt.Println("Piece Hashes:")
+	for _, p := range infoDict.Pieces {
+		fmt.Printf("%x\n", p)
+	}
+}

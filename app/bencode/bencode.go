@@ -37,6 +37,21 @@ func NewBencodeData(s []byte) (*BencodeData, error) {
 	return v, nil
 }
 
+// NewPartialBencodeData is used to parse a partial bencode data.
+// It does not check if the entire data has been parsed.
+// It also returns the remaining bytes after parsing.
+func NewPartialBencodeData(s []byte) (*BencodeData, []byte, error) {
+	d := newDecoder(s)
+
+	v, err := d.parse()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	leftData := d.data[d.idx:]
+	return v, leftData, nil
+}
+
 func NewDataString(s string) *BencodeData {
 	return &BencodeData{
 		Type: StringType,

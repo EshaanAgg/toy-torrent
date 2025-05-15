@@ -11,6 +11,28 @@ type BencodeDictionary struct {
 	Length int
 }
 
+func NewBencodeDictionary() *BencodeDictionary {
+	return &BencodeDictionary{
+		Map:    make(map[string]*BencodeData),
+		Length: 0,
+	}
+}
+
+func (d *BencodeDictionary) Add(key string, value *BencodeData) {
+	d.Map[key] = value
+	d.Length++
+}
+
+func (d *BencodeDictionary) GetInteger(key string) (int, error) {
+	if value, ok := d.Map[key]; ok {
+		if value.Type == IntegerType {
+			return value.GetInteger().Value, nil
+		}
+		return -1, fmt.Errorf("value for key %s is not an integer", key)
+	}
+	return -1, fmt.Errorf("key %s not found in dictionary", key)
+}
+
 // Returns the sorted keys of the dictionary. This is used to ensure that the
 // dictionary is always encoded in a consistent order, which is important for
 // hashing and comparison purposes.

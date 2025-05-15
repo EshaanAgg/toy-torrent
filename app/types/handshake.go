@@ -70,13 +70,8 @@ func (e *ExtensionHandshake) getDictionaryBytes() []byte {
 
 	// Base dictionary contains the extension map
 	// under the key "m"
-	baseDict := make(map[string]*bencode.BencodeData)
-	baseDict["m"] = bencode.NewDataDictionary(dict)
-
-	bd := bencode.BencodeDictionary{
-		Map:    baseDict,
-		Length: len(baseDict),
-	}
+	bd := bencode.NewBencodeDictionary()
+	bd.Add("m", bencode.NewDataDictionary(dict))
 	return bd.Encode()
 }
 
