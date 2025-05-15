@@ -29,22 +29,11 @@ func HandleMagnetInfo(args []string) {
 
 	// Perform handshake with the first peer
 	peer := peers[0]
-	err = peer.PrepareToGetPieceData(m.InfoHash, false)
+	fileInfo, err := peer.PrepareToGetPieceData_Magnet(m, true)
 	if err != nil {
 		println("error performing handshake:", err)
 		return
 	}
 
-	err = peer.SendMagnetRequestMessage(0)
-	if err != nil {
-		println("error sending magnet request message:", err)
-		return
-	}
-	torrentFileInfo, err := peer.GetMagnetDataMessage(m, 0)
-	if err != nil {
-		println("error getting magnet data message:", err)
-		return
-	}
-
-	logInfo(torrentFileInfo)
+	logInfo(fileInfo)
 }

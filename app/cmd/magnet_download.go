@@ -30,20 +30,15 @@ func HandleMagnetDownload(args []string) {
 		return
 	}
 
+	var fileInfo *types.TorrentFileInfo
+
 	// Prepare the peers to get piece data
 	for _, peer := range peers {
-		err = peer.PrepareToGetPieceData(m.InfoHash, false)
+		fileInfo, err = peer.PrepareToGetPieceData_Magnet(m, false)
 		if err != nil {
 			fmt.Printf("error performing handshake: %v\n", err)
 			return
 		}
-	}
-
-	// Take the first peer to get the info file
-	fileInfo, err := peers[0].GetInfoFile(m)
-	if err != nil {
-		fmt.Printf("error getting info file: %v\n", err)
-		return
 	}
 
 	// Create the pieces

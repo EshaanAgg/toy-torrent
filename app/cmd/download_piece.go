@@ -46,7 +46,7 @@ func HandleDownloadPiece(args []string) {
 	// We can do this as all the peers have all the pieces.
 	// TODO: Fix this assumption
 	peer := peers[0]
-	err = peer.PrepareToGetPieceData(fileInfo.InfoHash, false)
+	err = peer.PrepareToGetPieceData(fileInfo.InfoHash)
 	if err != nil {
 		fmt.Printf("error preparing to get piece data: %v\n", err)
 		return

@@ -32,7 +32,7 @@ func HandleDownload(args []string) {
 		return
 	}
 	for _, peer := range peers {
-		err = peer.PrepareToGetPieceData(fileInfo.InfoHash, false)
+		err = peer.PrepareToGetPieceData(fileInfo.InfoHash)
 		if err != nil {
 			fmt.Printf("error preparing peer: %v\n", err)
 			return

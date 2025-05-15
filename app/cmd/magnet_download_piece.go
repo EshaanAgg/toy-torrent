@@ -35,14 +35,9 @@ func HandleMagnetDownloadPiece(args []string) {
 
 	// Prepare to get piece data from the first peer, and also get the info file
 	peer := peers[0]
-	err = peer.PrepareToGetPieceData(m.InfoHash, false)
+	fileInfo, err := peer.PrepareToGetPieceData_Magnet(m, false)
 	if err != nil {
 		fmt.Printf("error performing handshake: %v\n", err)
-		return
-	}
-	fileInfo, err := peer.GetInfoFile(m)
-	if err != nil {
-		fmt.Printf("error getting info file: %v\n", err)
 		return
 	}
 
