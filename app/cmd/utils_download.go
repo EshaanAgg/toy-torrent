@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -24,7 +25,19 @@ type pieceResult struct {
 // downloadPieces downloads all pieces from peers concurrently. It uses a
 // worker pool to limit the number of concurrent downloads and handles
 // failed downloads by requeuing them for retry.
-func downloadPieces(peers []*types.Peer, pieces []*pieceToDownload) []byte {
+func downloadPieces(peers []*types.Peer, fileInfo *types.TorrentFileInfo, outputFile string) {
+	// Create pieces to download
+	var pieces []*pieceToDownload
+	for i := range len(fileInfo.InfoDict.Pieces) {
+		length := getPieceLength(fileInfo, i)
+		pieces = append(pieces, &pieceToDownload{
+			index:  uint32(i),
+			length: length,
+			hash:   fileInfo.InfoDict.Pieces[i],
+		})
+	}
+
+	// Create a wait group to synchronize the completion of all workers
 	var wg sync.WaitGroup
 	numWorkers := len(peers)
 	pieceQueue := make(chan *pieceToDownload, len(pieces))
@@ -71,6 +84,14 @@ func downloadPieces(peers []*types.Peer, pieces []*pieceToDownload) []byte {
 		filePieces[res.index] = res.data
 	}
 
+	// Combine all pieces into a single byte slice
+	// and write to the output file
 	finalData := bytes.Join(filePieces, []byte{})
-	return finalData
+	err := os.WriteFile(outputFile, finalData, 0644)
+	if err != nil {
+		fmt.Printf("error writing final file: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Downloaded file saved to '%s'\n", outputFile)
 }

@@ -50,9 +50,8 @@ func (p *Peer) MagnetHandshakeAndInfoFile(m *MagnetURI) (*TorrentFileInfo, error
 
 // PrepareToGetPieceData is to be used for stages with magnet links.
 func (p *Peer) PrepareToGetPieceData_Magnet(m *MagnetURI) (*TorrentFileInfo, error) {
-
 	// Get the torrent file info from the magnet link
-	infoFile, err := p.GetInfoFile(m)
+	infoFile, err := p.MagnetHandshakeAndInfoFile(m)
 	if err != nil {
 		return nil, fmt.Errorf("error getting info file: %w", err)
 	}
