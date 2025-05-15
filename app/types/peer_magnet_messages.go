@@ -14,7 +14,7 @@ func (p *Peer) SendMagnetRequestMessage(pieceIndex int) error {
 
 	payload := bencode.NewBencodeDictionary()
 	payload.Add("msg_type", bencode.NewDataInteger(0))
-	payload.Add("piece_index", bencode.NewDataInteger(pieceIndex))
+	payload.Add("piece", bencode.NewDataInteger(pieceIndex))
 	body = append(body, payload.Encode()...)
 
 	// Send the message
