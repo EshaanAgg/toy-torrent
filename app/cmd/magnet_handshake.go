@@ -29,7 +29,7 @@ func HandleMagnetHandshake(args []string) {
 
 	// Perform handshake with the first peer
 	peer := peers[0]
-	_, err = peer.PrepareToGetPieceData_Magnet(m, true)
+	_, err = peer.PerformMagnetHandshake(m, true)
 	if err != nil {
 		println("error performing handshake:", err)
 		return
