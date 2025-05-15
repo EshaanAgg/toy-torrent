@@ -10,15 +10,17 @@ import (
 type HandlerFn func(args []string)
 
 var handlers = map[string]HandlerFn{
-	"decode":           cmd.HandleDecode,
-	"info":             cmd.HandleInfo,
-	"peers":            cmd.HandlePeers,
-	"handshake":        cmd.HandleHandshake,
-	"download_piece":   cmd.HandleDownloadPiece,
-	"download":         cmd.HandleDownload,
-	"magnet_parse":     cmd.HandleMagnetParse,
-	"magnet_handshake": cmd.HandleMagnetHandshake,
-	"magnet_info":      cmd.HandleMagnetInfo,
+	"decode":                cmd.HandleDecode,
+	"info":                  cmd.HandleInfo,
+	"peers":                 cmd.HandlePeers,
+	"handshake":             cmd.HandleHandshake,
+	"download_piece":        cmd.HandleDownloadPiece,
+	"download":              cmd.HandleDownload,
+	"magnet_parse":          cmd.HandleMagnetParse,
+	"magnet_handshake":      cmd.HandleMagnetHandshake,
+	"magnet_info":           cmd.HandleMagnetInfo,
+	"magnet_download_piece": cmd.HandleMagnetDownloadPiece,
+	"magnet_download":       cmd.HandleMagnetDownload,
 }
 
 func main() {

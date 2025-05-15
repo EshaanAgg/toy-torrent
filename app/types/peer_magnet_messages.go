@@ -6,6 +6,22 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/bencode"
 )
 
+func (p *Peer) GetInfoFile(m *MagnetURI) (*TorrentFileInfo, error) {
+	// Send the magnet request message
+	err := p.SendMagnetRequestMessage(0)
+	if err != nil {
+		return nil, fmt.Errorf("error sending magnet request message: %w", err)
+	}
+
+	// Receive the magnet data message
+	infoDict, err := p.GetMagnetDataMessage(m, 0)
+	if err != nil {
+		return nil, fmt.Errorf("error receiving magnet data message: %w", err)
+	}
+
+	return infoDict, nil
+}
+
 func (p *Peer) SendMagnetRequestMessage(pieceIndex int) error {
 	// Create the body of the message
 	body := make([]byte, 0)

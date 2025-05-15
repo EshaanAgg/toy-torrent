@@ -6,15 +6,38 @@ import (
 	"io"
 )
 
-func (p *Peer) PrepareToGetPieceData(infoHash []byte) error {
-	_, err := p.PerformHandshake(infoHash)
+// PrepareToGetPieceData first performs a regular handshake with the peer,
+// then waits for a bitfield message. If the peer supports extensions,
+// it performs an extension handshake and retrieves the metadata extension ID.
+// It finally sends an "interested" message to the peer.
+// It also logs the peer ID and metadata extension ID to the console if logIDs is true.
+func (p *Peer) PrepareToGetPieceData(infoHash []byte, logIDs bool) error {
+	handshake, err := p.PerformHandshake(infoHash)
 	if err != nil {
 		return fmt.Errorf("error performing handshake: %w", err)
 	}
 
+	if logIDs {
+		fmt.Printf("Peer ID: %x\n", handshake.PeerID)
+	}
+
+	// TODO: Send a bitfield message to the peer
 	err = p.BlockTillBitFieldMessage()
 	if err != nil {
-		return fmt.Errorf("error while waiting for bitfield message: %w", err)
+		return fmt.Errorf("error waiting for bitfield message: %w", err)
+	}
+
+	if handshake.SupportsExtensions {
+		extHandshake, err := p.PerformExtensionHandshake()
+		if err != nil {
+			return fmt.Errorf("error performing extension handshake: %w", err)
+		}
+		if mtExtensionId, ok := extHandshake.ExtensionMap["ut_metadata"]; ok {
+			p.ExtensionMessageID = mtExtensionId
+			if logIDs {
+				fmt.Printf("Peer Metadata Extension ID: %d\n", mtExtensionId)
+			}
+		}
 	}
 
 	err = p.SendInterested()

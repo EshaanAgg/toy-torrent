@@ -7,22 +7,20 @@ import (
 	"github.com/EshaanAgg/toy-bittorrent/app/types"
 )
 
-func HandleDownload(args []string) {
+func HandleMagnetDownload(args []string) {
 	if len(args) != 3 || args[0] != "-o" {
-		println("incorrect arguments passed. usage: go-torrent download_file -o <output-file> <token-file>")
+		fmt.Println("usage: go-torrent magnet_download -o <output-file> <magnet-url>")
 		return
 	}
 
-	// Create the torrent file info
-	torrentFile := args[2]
-	fileInfo, err := types.NewTorrentFileInfo(torrentFile)
+	m, err := types.NewMagnetURI(args[2])
 	if err != nil {
-		fmt.Printf("error creating TorrentFileInfo: %v\n", err)
+		fmt.Printf("error creating MagnetURI: %v\n", err)
 		return
 	}
 
-	// Get peers and prepare them to send piece data
-	peers, err := getPeersFromFile(fileInfo, true)
+	// Get the peers from the tracker
+	peers, err := getPeers(m.TrackerURL, m.InfoHash, 999, true)
 	if err != nil {
 		fmt.Printf("error getting peers: %v\n", err)
 		return
@@ -31,12 +29,21 @@ func HandleDownload(args []string) {
 		fmt.Println("no peers found")
 		return
 	}
+
+	// Prepare the peers to get piece data
 	for _, peer := range peers {
-		err = peer.PrepareToGetPieceData(fileInfo.InfoHash, false)
+		err = peer.PrepareToGetPieceData(m.InfoHash, false)
 		if err != nil {
-			fmt.Printf("error preparing peer: %v\n", err)
+			fmt.Printf("error performing handshake: %v\n", err)
 			return
 		}
+	}
+
+	// Take the first peer to get the info file
+	fileInfo, err := peers[0].GetInfoFile(m)
+	if err != nil {
+		fmt.Printf("error getting info file: %v\n", err)
+		return
 	}
 
 	// Create the pieces
